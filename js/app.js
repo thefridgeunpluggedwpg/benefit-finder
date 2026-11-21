@@ -364,8 +364,9 @@
       '<label class="field"><span>Gender (optional)</span>' +
         '<select name="gender">' + opts({
           "prefer-not": "Prefer not to say",
-          woman: "Woman",
-          man: "Man",
+          "not-listed": "I will not provide this",
+          man: "Male",
+          woman: "Female",
           nonbinary: "Non-binary",
           other: "Another gender"
         }, val("gender") || "prefer-not") + '</select>' +
