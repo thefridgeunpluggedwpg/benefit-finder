@@ -1,4 +1,4 @@
-"""Benefit Finder v1.1.1 end-to-end tests (Playwright + local Chrome).
+"""Benefit Finder v1.1.2 end-to-end tests (Playwright + local Chrome).
 Serve the app on 127.0.0.1:8940 and run:
   /workspace/.venv-pw/bin/python tools/e2e.py
 Exit code 1 if any test fails.
@@ -74,7 +74,7 @@ def main():
         check("fees: 3% applies to non-DTC amounts only ($451.20)", abs(fees.get("percentFee") - 451.20) < 0.02 and abs(fees.get("baseFound") - 15040) < 0.01, fees)
         check("fees: DTC amount is excluded and $100 cap is recorded", fees.get("dtcCapCad") == 100 and fees.get("dtcFound") == 3480, fees)
         check("catalog has at least 20 official programs", page.evaluate("BF.PROGRAMS.length") >= 20, page.evaluate("BF.PROGRAMS.length"))
-        check("version is 1.1.1", page.evaluate("BF.VERSION") == "1.1.1", page.evaluate("BF.VERSION"))
+        check("version is 1.1.2", page.evaluate("BF.VERSION") == "1.1.2", page.evaluate("BF.VERSION"))
 
         WOMEN_IDS = ["wes-loan-fund", "wes-business-support", "mb-women-trades", "mb-gbv-supports"]
 
@@ -268,6 +268,23 @@ def main():
         check("Yes hides Homeowners Affordability Tax Credit from results", page.locator('[data-program-id="hatc"]').count() == 0)
         check("Yes lowers the dollar total by the HATC amount", abs((total_with - total_without) - 1600) < 0.05, {"with": total_with, "without": total_without})
         check("HATC is kept in the Already receiving list", page.locator('#alreadyList [data-already-hidden="hatc"]').count() == 1)
+
+        # --- Already-receiving items are never suggested again on a new search ---
+        page.evaluate("""() => { const st = BF.getState(); st.alreadyConfirmed = false; st.selectedIds = []; BF.replaceState(st); BF.goto('results'); }""")
+        page.wait_for_selector("#alreadyPanel, #resultsPanel")
+        check("New search: HATC not asked again on the checklist", page.locator('[data-already-row="hatc"]').count() == 0)
+        if page.locator("#alreadyPanel").count():
+            check("New search: checklist notes hidden already-received items", page.locator("#alreadyLockedNote").count() == 1)
+            page.click("#btnToResults")
+        page.wait_for_selector("#estimateTotal")
+        check("New search: HATC not suggested in results", page.locator('[data-program-id="hatc"]').count() == 0)
+        check("New search: total still excludes HATC", abs(money_val(page.inner_text("#estimateTotal")) - total_without) < 0.05)
+        all_ids = page.evaluate("""() => { const st = BF.getState(); const ids = BF.matchAll(st.profile).filter(m => m.estimate.match).map(m => m.program.id);
+            st.alreadyReceiving = {}; ids.forEach(id => st.alreadyReceiving[id] = true); st.alreadyConfirmed = false; st.selectedIds = []; BF.replaceState(st); BF.goto('results'); return ids; }""")
+        page.wait_for_selector("#resultsPanel")
+        check("Every credit and benefit marked Yes: checklist skipped, nothing suggested", page.locator("#alreadyPanel").count() == 0 and page.locator(".prog-row").count() == 0, len(all_ids))
+        check("Every item marked Yes stays in the not-suggested list", page.locator("#alreadyList [data-already-hidden]").count() == len(all_ids))
+        page.evaluate("""() => { const st = BF.getState(); st.alreadyReceiving = {}; BF.replaceState(st); }""")
 
         # --- Gender UI ---
         def show_results_for(profile):

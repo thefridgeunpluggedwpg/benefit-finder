@@ -66,6 +66,10 @@
     return /iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
   }
 
+  // Ids the person had already said Yes to when the checklist opened. Those are never asked about
+  // or suggested again on later searches (all credits, deductions and benefits, not one program).
+  var lockedYes = [];
+
   function skipAlreadyIds() {
     var rec = state.alreadyReceiving || {};
     return Object.keys(rec).filter(function (id) { return !!rec[id]; });
@@ -73,9 +77,11 @@
 
   function setView(name) {
     if (name === "results" && !state.alreadyConfirmed) {
-      var has = matches().some(function (m) { return m.estimate.match; });
+      var skip0 = skipAlreadyIds();
+      var has = matches().some(function (m) { return m.estimate.match && skip0.indexOf(m.program.id) < 0; });
       if (has) name = "already";
     }
+    if (name === "already") lockedYes = skipAlreadyIds();
     state.viewed = name;
     if (name === "intake") state.intakeStarted = true;
     save();
@@ -461,8 +467,10 @@
   }
 
   function viewAlready() {
-    var all = matches().filter(function (m) { return m.estimate.match; });
-    state.lastMatchCount = all.length;
+    var everything = matches().filter(function (m) { return m.estimate.match; });
+    state.lastMatchCount = everything.length;
+    var all = everything.filter(function (m) { return lockedYes.indexOf(m.program.id) < 0; });
+    var hiddenCount = everything.length - all.length;
     if (!all.length) {
       state.alreadyConfirmed = true;
       return viewResults();
@@ -485,7 +493,8 @@
     return (
       '<section class="panel" id="alreadyPanel">' +
         '<h1>Do you already receive any of these?</h1>' +
-        '<p>For each program that may apply, say whether you already receive it. Yes hides it from your results and from the dollar total. You can undo that later.</p>' +
+        '<p>For each program that may apply, say whether you already receive it. Yes hides it from your results and from the dollar total, and it will not be suggested again. You can undo that later.</p>' +
+        (hiddenCount ? '<p class="fine" id="alreadyLockedNote">' + hiddenCount + ' program' + (hiddenCount === 1 ? '' : 's') + ' you already said you receive ' + (hiddenCount === 1 ? 'is' : 'are') + ' not shown again.</p>' : '') +
         rows +
         '<div class="actions">' +
           '<button class="btn" type="button" id="btnToResults">See my results</button>' +
@@ -544,8 +553,8 @@
           '<button class="btn ghost" type="button" data-undo-already="' + esc(m.program.id) + '">Include in results</button>' +
         '</div>';
       }).join("");
-      alreadyBlock = '<details id="alreadyList" class="already-list"><summary>Already receiving (' + t.alreadyReceiving.length + ')</summary>' +
-        '<p class="fine">These are hidden from the total. Include one again if you chose Yes by mistake.</p>' + hiddenRows + '</details>';
+      alreadyBlock = '<details id="alreadyList" class="already-list"><summary>Already receiving (' + t.alreadyReceiving.length + ') — not suggested</summary>' +
+        '<p class="fine">You said you already receive these, so they are left out of your results and the total and will not be suggested again. Include one only if you chose Yes by mistake.</p>' + hiddenRows + '</details>';
     }
     return (
       '<section class="panel" id="resultsPanel">' +
@@ -769,7 +778,8 @@
           save();
           state.selectedIds = [];
           state.alreadyConfirmed = false;
-          var any = matches().some(function (m) { return m.estimate.match; });
+          var skipNow = skipAlreadyIds();
+          var any = matches().some(function (m) { return m.estimate.match && skipNow.indexOf(m.program.id) < 0; });
           if (!any) {
             state.alreadyConfirmed = true;
             setView("results");

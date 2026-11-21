@@ -1,8 +1,8 @@
 /* Benefit Finder — app name lives here so it can be renamed in one place. */
 window.BF = window.BF || {};
 BF.APP_NAME = "Benefit Finder";
-BF.VERSION = "1.1.1";
-BF.CACHE_NAME = "benefit-finder-v1.1.1";
+BF.VERSION = "1.1.2";
+BF.CACHE_NAME = "benefit-finder-v1.1.2";
 BF.STORAGE_KEY = "benefit-finder-v1";
 BF.DEFAULT_FEE_PERCENT = 3;
 BF.MIN_FEE_PERCENT = 2;
