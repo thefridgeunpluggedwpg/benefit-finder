@@ -1,4 +1,4 @@
-"""Benefit Finder v1.0.0 end-to-end tests (Playwright + local Chrome).
+"""Benefit Finder v1.1.0 end-to-end tests (Playwright + local Chrome).
 Serve the app on 127.0.0.1:8940 and run:
   /workspace/.venv-pw/bin/python tools/e2e.py
 Exit code 1 if any test fails.
@@ -74,6 +74,40 @@ def main():
         check("fees: 3% applies to non-DTC amounts only ($451.20)", abs(fees.get("percentFee") - 451.20) < 0.02 and abs(fees.get("baseFound") - 15040) < 0.01, fees)
         check("fees: DTC amount is excluded and $100 cap is recorded", fees.get("dtcCapCad") == 100 and fees.get("dtcFound") == 3480, fees)
         check("catalog has at least 20 official programs", page.evaluate("BF.PROGRAMS.length") >= 20, page.evaluate("BF.PROGRAMS.length"))
+        check("version is 1.1.0", page.evaluate("BF.VERSION") == "1.1.0", page.evaluate("BF.VERSION"))
+
+        WOMEN_IDS = ["wes-loan-fund", "wes-business-support", "mb-women-trades", "mb-gbv-supports"]
+
+        def matched_ids(gender, extra=None):
+            return page.evaluate(
+                """([g, extra]) => {
+                  const p = Object.assign({
+                    province: 'MB', age: 32, marital: 'single', householdIncome: 28000,
+                    working: true, workingIncome: 28000, children: [], gender: g,
+                    businessOwner: true, tradesApprentice: true, pregnant: false
+                  }, extra || {});
+                  return BF.matchAll(p).filter((m) => m.estimate.match).map((m) => m.program.id);
+                }""",
+                [gender, extra or {}],
+            )
+
+        ids_f = matched_ids("woman")
+        check("Female surfaces women-targeted programs", all(i in ids_f for i in WOMEN_IDS), ids_f)
+        ids_p = matched_ids("prefer-not")
+        check("Prefer not to say does not surface women-targeted programs", not any(i in ids_p for i in WOMEN_IDS), ids_p)
+        ids_n = matched_ids("not-listed")
+        check("I will not provide this does not surface women-targeted programs", not any(i in ids_n for i in WOMEN_IDS), ids_n)
+        ids_m = matched_ids("man")
+        check("Male does not surface women-targeted programs", not any(i in ids_m for i in WOMEN_IDS), ids_m)
+        check("Male surfaces no men-only cash program (none verified)", not any(str(i).startswith("men-") for i in ids_m), ids_m)
+        ids_mat_m = matched_ids("man", {"pregnant": True, "working": True, "workingIncome": 28000})
+        check("EI maternity is keyed on pregnancy, including for Male", "ei-maternity" in ids_mat_m, ids_mat_m)
+        loan_tot = page.evaluate("""() => {
+          const p = {province:'MB', age:32, marital:'single', householdIncome:28000, gender:'woman', businessOwner:true, tradesApprentice:true, children:[]};
+          const t = BF.totals(BF.matchAll(p));
+          return {cash: t.cash, hasLoans: t.hasLoans, ids: t.matched.map(m => m.program.id)};
+        }""")
+        check("women entrepreneurship loan is listed but excluded from the dollar total", loan_tot["hasLoans"] is True and "wes-loan-fund" in loan_tot["ids"] and loan_tot["cash"] < 50000, loan_tot)
 
         page.click("#btnStart")
         page.wait_for_selector('input[name="age"]')
@@ -117,6 +151,11 @@ def main():
         page.fill("#referralCodeEntered", "DEMO-REF")
         page.click("#btnFind")
 
+        page.wait_for_selector("#alreadyPanel")
+        check("already-receiving checklist appears before results", "already receive" in page.inner_text("#alreadyPanel").lower())
+        defaults_no = page.evaluate("""() => [...document.querySelectorAll('[data-already][data-val="no"]')].every((b) => b.getAttribute('aria-pressed') === 'true')""")
+        check("already-receiving defaults to No", defaults_no is True)
+        page.click("#btnToResults")
         page.wait_for_selector("#estimateTotal")
         body = page.inner_text("#resultsPanel")
         total_text = page.inner_text("#estimateTotal")
@@ -195,6 +234,79 @@ def main():
         page.wait_for_selector("#myReferralCode")
         check("referral dashboard shows this user's code", page.inner_text("#myReferralCode").startswith("BF-"))
         check("referral dashboard mentions the entered referrer code", "DEMO-REF" in page.inner_text("main"))
+
+        # --- Already receiving: Homeowners Affordability Tax Credit ---
+        def money_val(text):
+            return float(text.replace("$", "").replace(",", "").strip())
+
+        page.evaluate("""() => {
+          const st = BF.getState();
+          st.profile = Object.assign(BF.emptyProfile(), {
+            displayName: 'Pat Owner', province: 'MB', age: 45, marital: 'single',
+            householdIncome: 50000, housing: 'own', livedInCanadaMostOfLife: true,
+            gender: 'prefer-not', children: []
+          });
+          st.intakeStarted = true;
+          st.alreadyReceiving = {};
+          st.alreadyConfirmed = false;
+          st.selectedIds = [];
+          BF.replaceState(st);
+          BF.goto('already');
+        }""")
+        page.wait_for_selector("#alreadyPanel")
+        check("HATC appears on the already-receiving checklist", page.locator('[data-already-row="hatc"]').count() == 1)
+        page.click("#btnToResults")
+        page.wait_for_selector("#estimateTotal")
+        check("No shows Homeowners Affordability Tax Credit in results", page.locator('[data-program-id="hatc"]').count() == 1)
+        total_with = money_val(page.inner_text("#estimateTotal"))
+        page.click('button[data-go="already"]')
+        page.wait_for_selector('[data-already="hatc"][data-val="yes"]')
+        page.click('[data-already="hatc"][data-val="yes"]')
+        page.click("#btnToResults")
+        page.wait_for_selector("#estimateTotal")
+        total_without = money_val(page.inner_text("#estimateTotal"))
+        check("Yes hides Homeowners Affordability Tax Credit from results", page.locator('[data-program-id="hatc"]').count() == 0)
+        check("Yes lowers the dollar total by the HATC amount", abs((total_with - total_without) - 1600) < 0.05, {"with": total_with, "without": total_without})
+        check("HATC is kept in the Already receiving list", page.locator('#alreadyList [data-already-hidden="hatc"]').count() == 1)
+
+        # --- Gender UI ---
+        def show_results_for(profile):
+            page.evaluate("""(profile) => {
+              const st = BF.getState();
+              st.profile = Object.assign(BF.emptyProfile(), profile);
+              st.intakeStarted = true;
+              st.alreadyReceiving = {};
+              st.alreadyConfirmed = false;
+              st.selectedIds = [];
+              BF.replaceState(st);
+              BF.goto('already');
+            }""", profile)
+            page.wait_for_selector("#alreadyPanel")
+            page.click("#btnToResults")
+            page.wait_for_selector("#resultsPanel")
+
+        woman_profile = {
+            "displayName": "Alex", "province": "MB", "age": 32, "marital": "single",
+            "householdIncome": 28000, "housing": "rent", "gender": "woman",
+            "businessOwner": True, "tradesApprentice": True, "children": [],
+        }
+        show_results_for(woman_profile)
+        for pid, label in [
+            ("wes-loan-fund", "Women Entrepreneurship Loan Fund"),
+            ("wes-business-support", "WES business support"),
+            ("mb-women-trades", "women in the trades"),
+            ("mb-gbv-supports", "Gender-Based Violence"),
+        ]:
+            check("Female results include " + pid, page.locator('[data-program-id="%s"]' % pid).count() == 1, page.inner_text("#resultsPanel")[:200])
+        check("Female loan is labelled a loan and not added as $50,000 cash", "loan" in page.locator('[data-program-id="wes-loan-fund"]').inner_text().lower() and "50,000" in page.inner_text("#resultsPanel") and money_val(page.inner_text("#estimateTotal")) < 50000)
+
+        show_results_for(dict(woman_profile, gender="prefer-not"))
+        missing = [pid for pid in WOMEN_IDS if page.locator('[data-program-id="%s"]' % pid).count() != 0]
+        check("Prefer not to say hides women-targeted programs in the UI", missing == [], missing)
+
+        show_results_for(dict(woman_profile, gender="man"))
+        missing_m = [pid for pid in WOMEN_IDS if page.locator('[data-program-id="%s"]' % pid).count() != 0]
+        check("Male hides women-targeted programs in the UI and does not error", missing_m == [] and not errs, missing_m)
 
         check("no page errors", not errs, errs)
 

@@ -340,6 +340,42 @@ BF.estimateProgram = function (program, profile) {
     return varies({ note: "This is health-benefits coverage, not a cash payment. Confirm eligibility on the official Non-Insured Health Benefits page." });
   }
 
+  if (id === "wes-loan-fund") {
+    if (p.gender !== "woman") return skip("This loan fund is for women entrepreneurs. It is only listed if you choose Female.");
+    if (!p.businessOwner) return skip("Listed when you own a business or are starting one.");
+    return maximum(50000, { excludeFromTotal: true, note: "Official maximum is a loan of up to $50,000 to start or grow a business. This is a loan, not a grant, so it is not included in the dollar total. Apply through a delivery organization listed on the official ISED page. In Manitoba those partners include WEOC (WECM), Nventure, and NACCA for Indigenous entrepreneurs. Those organizations are currently accepting applications." });
+  }
+
+  if (id === "wes-business-support") {
+    if (p.gender !== "woman") return skip("Women Entrepreneurship Strategy business support is listed if you choose Female.");
+    if (!p.businessOwner) return skip("Listed when you own a business or are starting one.");
+    return varies({ note: "This is training, mentorship, and networks funded through the Women Entrepreneurship Strategy, not a cash payment to you. Use the official WES page to find a participating organization." });
+  }
+
+  if (id === "mb-women-trades") {
+    if (p.gender !== "woman") return skip("These Manitoba supports are for women in the trades. They are only listed if you choose Female.");
+    if (!p.tradesApprentice) return skip("Listed when you are a trades apprentice or looking at a skilled trade.");
+    if (!mb) return skip("These supports are described by Apprenticeship Manitoba.");
+    return varies({ note: "Official Apprenticeship Manitoba supports include the Office to Advance Women Apprentices and LauncHER into Trades. These are services, not a fixed cash benefit." });
+  }
+
+  if (id === "mb-gbv-supports") {
+    if (p.gender !== "woman") return skip("These shelter and transition supports are listed if you choose Female. Official materials also say shelters can help find a safe place for men; this catalog does not treat that as a separate men-only program.");
+    if (!mb) return skip("This is a Manitoba program.");
+    return varies({ note: "This is a support service (shelters, resource centres, and second-stage housing), not a cash benefit. Use the official resources page for current local services. Information you enter stays on this device." });
+  }
+
+  if (id === "ei-maternity") {
+    if (!p.pregnant) return skip("Employment Insurance maternity benefits are for a person who is pregnant or has recently given birth.");
+    if (p.province === "QC") return skip("Quebec residents use the Québec Parental Insurance Plan, not federal EI maternity benefits.");
+    var eiNote = "Official rates (page updated 22 October 2026): up to 15 weeks at 55% of average weekly earnings, to a maximum of $729 a week. You generally need 600 insured hours in the qualifying period, and earnings must drop by more than 40% for at least one week. Official rules say these benefits are available to eligible people regardless of gender identity.";
+    if (work > 0) {
+      var weekly = Math.min(729, 0.55 * (work / 52));
+      return estimated(weekly * 15, { note: eiNote + " This estimate uses 55% of the working income you entered, capped at the official weekly maximum, times 15 weeks. It does not check your insured hours." });
+    }
+    return varies({ note: eiNote + " A personal dollar estimate is not shown without working income. The official weekly maximum times 15 weeks would be $10,935, and only applies at the cap." });
+  }
+
   return skip("No matching rule is defined for this program.");
 };
 
@@ -350,21 +386,64 @@ BF.matchAll = function (profile) {
   });
 };
 
-BF.totals = function (matches) {
+BF.programType = function (program) {
+  if (program && program.type) return program.type;
+  var id = program && program.id;
+  if (["hatc", "ratc", "seniors-school-tax-rebate", "dtc"].indexOf(id) >= 0) return "tax credit";
+  if (["clb", "cesg", "cdsg", "canada-student-grant"].indexOf(id) >= 0) return "grant";
+  if (["cdcp", "nihb"].indexOf(id) >= 0) return "coverage";
+  return "benefit";
+};
+
+BF.typeLabel = function (type) {
+  return ({
+    benefit: "Benefit",
+    "tax credit": "Tax credit",
+    grant: "Grant",
+    loan: "Loan",
+    "support service": "Support service",
+    coverage: "Coverage"
+  })[type] || type;
+};
+
+BF.inCashTotal = function (program, estimate) {
+  if (!estimate || !estimate.match) return false;
+  if (estimate.excludeFromTotal) return false;
+  if (program && (program.excludeFromTotal || program.notCash)) return false;
+  var t = BF.programType(program);
+  if (t === "loan" || t === "support service" || t === "coverage") return false;
+  if (estimate.kind === "varies" || estimate.amountCad == null) return false;
+  return true;
+};
+
+BF.totals = function (matches, opts) {
+  opts = opts || {};
+  var skip = opts.skipIds || [];
   var cash = 0;
   var hasVaries = false;
+  var hasLoans = false;
   var matched = [];
+  var already = [];
   matches.forEach(function (m) {
     if (!m.estimate.match) return;
+    if (skip.indexOf(m.program.id) >= 0) {
+      already.push(m);
+      return;
+    }
     matched.push(m);
-    if (m.estimate.kind === "varies" || m.estimate.amountCad == null) hasVaries = true;
-    else cash += m.estimate.amountCad;
+    if (BF.programType(m.program) === "loan") hasLoans = true;
+    if (!BF.inCashTotal(m.program, m.estimate)) {
+      if (m.estimate.kind === "varies" || m.estimate.amountCad == null) hasVaries = true;
+      return;
+    }
+    cash += m.estimate.amountCad;
   });
-  return { cash: money(cash), hasVaries: hasVaries, matched: matched };
+  return { cash: money(cash), hasVaries: hasVaries, hasLoans: hasLoans, matched: matched, alreadyReceiving: already };
 };
 
 BF.feeBaseAmount = function (amountCad, program) {
   if (program && (program.dtcContingent || program.feeCapped)) return 0;
+  if (program && (program.excludeFromTotal || program.notCash || BF.programType(program) === "loan")) return 0;
   if (amountCad == null || !isFinite(amountCad)) return 0;
   return amountCad;
 };

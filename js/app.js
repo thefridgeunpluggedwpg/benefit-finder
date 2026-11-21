@@ -66,7 +66,16 @@
     return /iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
   }
 
+  function skipAlreadyIds() {
+    var rec = state.alreadyReceiving || {};
+    return Object.keys(rec).filter(function (id) { return !!rec[id]; });
+  }
+
   function setView(name) {
+    if (name === "results" && !state.alreadyConfirmed) {
+      var has = matches().some(function (m) { return m.estimate.match; });
+      if (has) name = "already";
+    }
     state.viewed = name;
     if (name === "intake") state.intakeStarted = true;
     save();
@@ -147,9 +156,9 @@
   }
 
   function renderTabs() {
-    var hasMatches = !!(state.lastMatchCount > 0 || (state.selectedIds && state.selectedIds.length));
+    var hasMatches = !!(state.lastMatchCount > 0 || (state.selectedIds && state.selectedIds.length) || state.viewed === "already" || state.alreadyConfirmed);
     var hasApps = state.applications.length > 0;
-    $("#tabResults").disabled = !hasMatches && state.viewed !== "results";
+    $("#tabResults").disabled = !hasMatches && state.viewed !== "results" && state.viewed !== "already";
     $("#tabTracker").disabled = !hasApps && state.viewed !== "tracker";
     $$(".tabbar button").forEach(function (b) {
       var target = b.getAttribute("data-view");
@@ -167,6 +176,7 @@
     var v = state.viewed || "home";
     if (v === "home") root.innerHTML = viewHome();
     else if (v === "intake") root.innerHTML = viewIntake();
+    else if (v === "already") root.innerHTML = viewAlready();
     else if (v === "results") root.innerHTML = viewResults();
     else if (v === "tracker") root.innerHTML = viewTracker();
     else if (v === "referral") root.innerHTML = viewReferral();
@@ -197,7 +207,7 @@
         '<p>You fill one form, including a government ID upload early on, because most programs ask for ID later.</p>' +
         '<p>Matching uses published rules only. If an official amount cannot be verified, the program shows “amount varies” instead of a number.</p>' +
         '<p>When you approve a program, this app builds a packet: a prefilled summary, the official application link, and a document checklist. Tax-related programs go to the owner’s accountant specialist queue. Other programs are marked “submit directly.” The owner updates status by hand: Submitted, In review, Approved, or Denied.</p>' +
-        '<p class="fine">Gender and ethnicity are optional, include “prefer not to say,” and are only used when a program actually targets that group. In this catalog, only the Indigenous identity question is used, and only for Non-Insured Health Benefits.</p>' +
+        '<p class="fine">Gender and ethnicity are optional and include “prefer not to say.” Gender is used only to list programs that target women or men. If you prefer not to say, those targeted programs are left out. Ethnicity is not used for matching in this catalog, except the optional Indigenous identity question for Non-Insured Health Benefits.</p>' +
       '</section>'
     );
   }
@@ -337,6 +347,24 @@
     );
   }
 
+
+  function genderFollowups(gender) {
+    var html = "";
+    if (gender === "prefer-not" || gender === "not-listed" || gender === "nonbinary" || gender === "other") {
+      html += '<p class="notice" id="genderProgramNote">Some official programs are meant for women, and a smaller number are meant for men. They appear only if you choose Female or Male. Choosing not to say just leaves those programs out of your results.</p>';
+    }
+    if (gender === "man") {
+      html += '<p class="fine" id="genderProgramNote">This catalog does not currently list a government cash benefit or grant that is only for men. Choosing Male will not add a men-only program, and it will not list women-targeted programs.</p>';
+    }
+    if (gender === "woman") {
+      html += '<div id="genderFollowupFields">' +
+        '<label class="choice"><input type="checkbox" name="businessOwner"' + (val("businessOwner") ? " checked" : "") + '><span>I own a business or I am starting one</span></label>' +
+        '<label class="choice"><input type="checkbox" name="tradesApprentice"' + (val("tradesApprentice") ? " checked" : "") + '><span>I am a trades apprentice, or I am looking at a skilled trade</span></label>' +
+      '</div>';
+    }
+    return html;
+  }
+
   function stepSituation() {
     return (
       '<h1>Your situation</h1>' +
@@ -362,7 +390,7 @@
         '<span class="hint">Used only for the Non-Insured Health Benefits program, which applies to eligible First Nations and Inuit people.</span>' +
       '</label>' +
       '<label class="field"><span>Gender (optional)</span>' +
-        '<select name="gender">' + opts({
+        '<select name="gender" id="genderSelect">' + opts({
           "prefer-not": "Prefer not to say",
           "not-listed": "I will not provide this",
           man: "Male",
@@ -370,8 +398,9 @@
           nonbinary: "Non-binary",
           other: "Another gender"
         }, val("gender") || "prefer-not") + '</select>' +
-        '<span class="hint">None of the programs in this catalog use gender for eligibility, so this answer is stored and not applied to matching.</span>' +
+        '<span class="hint">Used only to list programs that target women or men. If you choose Prefer not to say or I will not provide this, those targeted programs are left out — you can still see a short note about them. Other programs are not affected.</span>' +
       '</label>' +
+      genderFollowups(val("gender") || "prefer-not") +
       '<label class="field"><span>Ethnicity (optional)</span>' +
         '<select name="ethnicity">' + opts({
           "prefer-not": "Prefer not to say",
@@ -419,40 +448,100 @@
     }).join("");
   }
 
+  function amountText(program, est) {
+    var typ = BF.programType(program);
+    if (typ === "loan" && est.amountCad != null) return "Up to " + fmtMoney(est.amountCad) + " (loan)";
+    if (est.amountCad == null || est.kind === "varies") return "Amount varies";
+    if (est.kind === "maximum") return "Up to " + fmtMoney(est.amountCad);
+    return fmtMoney(est.amountCad);
+  }
+
+  function viewAlready() {
+    var all = matches().filter(function (m) { return m.estimate.match; });
+    state.lastMatchCount = all.length;
+    if (!all.length) {
+      state.alreadyConfirmed = true;
+      return viewResults();
+    }
+    var rows = all.map(function (m) {
+      var yes = !!(state.alreadyReceiving && state.alreadyReceiving[m.program.id]);
+      var typ = BF.typeLabel(BF.programType(m.program));
+      return '<div class="already-row" data-already-row="' + esc(m.program.id) + '">' +
+        '<div>' +
+          '<div class="name">Do you already receive ' + esc(m.program.name) + '?</div>' +
+          '<div><span class="tag">' + esc(typ) + '</span>' +
+          '<span class="tag">' + esc(m.program.jurisdiction === "manitoba" ? "Manitoba" : "Federal") + '</span></div>' +
+        '</div>' +
+        '<div class="yn" role="group" aria-label="Already receive ' + esc(m.program.name) + '">' +
+          '<button type="button" data-already="' + esc(m.program.id) + '" data-val="yes" aria-pressed="' + (yes ? "true" : "false") + '">Yes</button>' +
+          '<button type="button" data-already="' + esc(m.program.id) + '" data-val="no" aria-pressed="' + (yes ? "false" : "true") + '">No</button>' +
+        '</div>' +
+      '</div>';
+    }).join("");
+    return (
+      '<section class="panel" id="alreadyPanel">' +
+        '<h1>Do you already receive any of these?</h1>' +
+        '<p>For each program that may apply, say whether you already receive it. Yes hides it from your results and from the dollar total. You can undo that later.</p>' +
+        rows +
+        '<div class="actions">' +
+          '<button class="btn" type="button" id="btnToResults">See my results</button>' +
+          '<button class="btn secondary" type="button" data-go="intake">Edit answers</button>' +
+        '</div>' +
+      '</section>'
+    );
+  }
+
   function viewResults() {
     var all = matches();
-    var t = BF.totals(all);
-    state.lastMatchCount = t.matched.length;
+    var t = BF.totals(all, { skipIds: skipAlreadyIds() });
+    state.lastMatchCount = t.matched.length + (t.alreadyReceiving ? t.alreadyReceiving.length : 0);
     var feeItems = t.matched.map(function (m) {
       return {
-        amountCad: m.estimate.amountCad,
+        amountCad: BF.feeBaseAmount(m.estimate.amountCad, m.program),
         dtcContingent: !!m.program.dtcContingent,
         feeCapped: !!m.program.feeCapped
       };
     });
     var fees = BF.computeFees(feeItems, state.settings);
+    var visibleIds = t.matched.map(function (m) { return m.program.id; });
     if (!state.selectedIds || !state.selectedIds.length) {
-      state.selectedIds = t.matched.map(function (m) { return m.program.id; });
+      state.selectedIds = visibleIds.slice();
+    } else {
+      state.selectedIds = state.selectedIds.filter(function (id) { return visibleIds.indexOf(id) >= 0; });
     }
     var rows = t.matched.map(function (m) {
       var est = m.estimate;
-      var amt = est.amountCad == null ? "Amount varies" : fmtMoney(est.amountCad);
-      var kind = est.kind === "maximum" ? "Approximate maximum" : (est.kind === "varies" ? "Amount varies" : "Approximate estimate");
+      var typ = BF.programType(m.program);
+      var kind = typ === "loan" ? "Loan — not included in the total" : (est.kind === "maximum" ? "Approximate maximum" : (est.kind === "varies" ? "Amount varies" : "Approximate estimate"));
       var checked = state.selectedIds.indexOf(m.program.id) >= 0 ? " checked" : "";
-      return '<article class="prog-row">' +
+      return '<article class="prog-row" data-program-id="' + esc(m.program.id) + '">' +
         '<input type="checkbox" data-select="' + esc(m.program.id) + '"' + checked + ' aria-label="Include ' + esc(m.program.name) + '">' +
         '<div><div class="name">' + esc(m.program.name) + '</div>' +
           '<div><span class="tag ' + esc(m.program.route) + '">' + esc(routeLabel(m.program.route)) + '</span>' +
+          '<span class="tag">' + esc(BF.typeLabel(typ)) + '</span>' +
           '<span class="tag">' + esc(m.program.jurisdiction === "manitoba" ? "Manitoba" : "Federal") + '</span></div>' +
           '<p class="fine">' + esc(kind) + ' · ' + esc(m.program.benefitYear) + '</p>' +
           (est.note ? '<p class="fine">' + esc(est.note) + '</p>' : "") +
           '<p class="fine"><a href="' + esc(m.program.officialUrl) + '" target="_blank" rel="noopener">Official program page</a></p>' +
         '</div>' +
-        '<div class="amt">' + esc(amt) + '</div>' +
+        '<div class="amt">' + esc(amountText(m.program, est)) + '</div>' +
       '</article>';
     }).join("");
-    if (!t.matched.length) {
+    if (!t.matched.length && !(t.alreadyReceiving && t.alreadyReceiving.length)) {
       rows = '<p>No programs in this catalog matched the answers you entered. You can go back and change the form.</p>';
+    } else if (!t.matched.length) {
+      rows = '<p id="noVisibleMatches">No other programs are listed. The ones you already receive are under the list below.</p>';
+    }
+    var alreadyBlock = "";
+    if (t.alreadyReceiving && t.alreadyReceiving.length) {
+      var hiddenRows = t.alreadyReceiving.map(function (m) {
+        return '<div class="already-hidden-row" data-already-hidden="' + esc(m.program.id) + '">' +
+          '<span>' + esc(m.program.name) + '</span>' +
+          '<button class="btn ghost" type="button" data-undo-already="' + esc(m.program.id) + '">Include in results</button>' +
+        '</div>';
+      }).join("");
+      alreadyBlock = '<details id="alreadyList" class="already-list"><summary>Already receiving (' + t.alreadyReceiving.length + ')</summary>' +
+        '<p class="fine">These are hidden from the total. Include one again if you chose Yes by mistake.</p>' + hiddenRows + '</details>';
     }
     return (
       '<section class="panel" id="resultsPanel">' +
@@ -461,6 +550,8 @@
           '<div class="amount" id="estimateTotal">' + fmtMoney(t.cash) + '</div>' +
           '<p class="caption" id="estimateCaption">Approximate estimated total of programs with a calculated or official-maximum amount, for the benefit years shown on each program.' +
             (t.hasVaries ? ' Some matches have no dollar figure and are listed as “amount varies.” They are not included in this total.' : "") +
+            (t.hasLoans ? ' Loans are listed separately and are not included in this total.' : "") +
+            (t.alreadyReceiving && t.alreadyReceiving.length ? ' Programs you already receive are also left out of this total.' : "") +
           '</p>' +
         '</div>' +
         '<div class="notice">' +
@@ -470,9 +561,11 @@
             'Disability Tax Credit requests, and tax items that depend on the DTC, are left out of that percentage. Any fee for helping with a DTC request is capped at ' +
             fmtMoney(fees.dtcCapCad) + ' under the Disability Tax Credit Promoters Restrictions Regulations. Those regulations are currently suspended by a court injunction, but this app still applies the cap. I did not find a similar statutory fee cap for the other programs in this catalog.</p>' +
         '</div>' +
+        alreadyBlock +
         (t.matched.length ? '<h2>Programs that may apply</h2><p class="muted">Uncheck any program you do not want in a packet, then approve. Approval builds a packet on this device — it does not file with government.</p>' + rows : rows) +
         '<div class="actions">' +
           '<button class="btn" type="button" id="btnApprove"' + (t.matched.length ? "" : " disabled") + '>Approve selected packets</button>' +
+          '<button class="btn secondary" type="button" data-go="already">Change what I already receive</button>' +
           '<button class="btn secondary" type="button" data-go="intake">Edit answers</button>' +
         '</div>' +
       '</section>'
@@ -671,7 +764,14 @@
         if (state.viewed === "intake" && state.intakeStep === 5) {
           save();
           state.selectedIds = [];
-          setView("results");
+          state.alreadyConfirmed = false;
+          var any = matches().some(function (m) { return m.estimate.match; });
+          if (!any) {
+            state.alreadyConfirmed = true;
+            setView("results");
+          } else {
+            setView("already");
+          }
           return;
         }
         state.intakeStep = Math.min(5, (state.intakeStep || 1) + 1);
@@ -727,6 +827,37 @@
     $$("[data-advance]").forEach(function (b) {
       b.addEventListener("click", function () { advanceStatus(b.getAttribute("data-advance")); });
     });
+    var genderSel = $("#genderSelect");
+    if (genderSel) genderSel.addEventListener("change", function () {
+      if (form) readForm(form);
+      save();
+      render();
+    });
+    $$("[data-already]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var id = b.getAttribute("data-already");
+        var yes = b.getAttribute("data-val") === "yes";
+        state.alreadyReceiving = state.alreadyReceiving || {};
+        state.alreadyReceiving[id] = yes;
+        save();
+        render();
+      });
+    });
+    var toResults = $("#btnToResults");
+    if (toResults) toResults.addEventListener("click", function () {
+      state.alreadyConfirmed = true;
+      setView("results");
+    });
+    $$("[data-undo-already]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var id = b.getAttribute("data-undo-already");
+        state.alreadyReceiving = state.alreadyReceiving || {};
+        state.alreadyReceiving[id] = false;
+        if (state.selectedIds.indexOf(id) < 0) state.selectedIds.push(id);
+        save();
+        render();
+      });
+    });
   }
 
   function onIdFiles(ev) {
@@ -767,8 +898,9 @@
 
   function approveSelected() {
     var all = matches();
+    var skip = skipAlreadyIds();
     var chosen = all.filter(function (m) {
-      return m.estimate.match && state.selectedIds.indexOf(m.program.id) >= 0;
+      return m.estimate.match && state.selectedIds.indexOf(m.program.id) >= 0 && skip.indexOf(m.program.id) < 0;
     });
     if (!chosen.length) {
       window.alert("Select at least one program to approve.");
@@ -867,6 +999,10 @@
     document.getElementById("appName").textContent = BF.APP_NAME;
     document.title = BF.APP_NAME;
   }
+
+  BF.goto = setView;
+  BF.getState = function () { return state; };
+  BF.replaceState = function (next) { state = next; save(); render(); };
 
   bindChrome();
   setupInstall();

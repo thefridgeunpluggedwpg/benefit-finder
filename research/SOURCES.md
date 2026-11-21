@@ -32,3 +32,14 @@ Amounts and rules in Benefit Finder come from these pages. If a figure could not
 - Manitoba Budget 2026 taxation bulletin (2026 Renters Affordability Tax Credit maximum $625, seniors’ top-up $357; HATC $1,600): https://www.manitoba.ca/finance/taxation/pubs/bulletins/2026budget.pdf
 - 55 PLUS program: https://www.manitoba.ca/fs/eia/55plus.html
 - Manitoba Prenatal Benefit: https://www.manitoba.ca/fs/healthybaby/prenatal-benefit.html
+
+## Gender-targeted and pregnancy-keyed programs (added 21 November 2026)
+
+- Women Entrepreneurship Loan Fund (currently accepting applications; up to $50,000 loans): https://ised-isde.canada.ca/site/ised/en/programs-and-initiatives/women-entrepreneurship-strategy/women-entrepreneurship-loan-fund
+- Women Entrepreneurship Strategy (business support overview): https://ised-isde.canada.ca/site/ised/en/programs-and-initiatives/women-entrepreneurship-strategy
+- WES Ecosystem Fund call for proposals is for organizations, not individual applicants, and the 2027 call closed 9 November 2026: https://ised-isde.canada.ca/site/ised/en/programs-and-initiatives/women-entrepreneurship-strategy/wes-ecosystem-fund
+- Apprenticeship Manitoba services and supports, including the Office to Advance Women Apprentices and LauncHER into Trades: https://www.manitoba.ca/apprenticeship/apprenticeship-program/services-and-supports.html
+- Manitoba Gender-Based Violence Program resources (shelters, resource centres, second-stage housing): https://www.manitoba.ca/wage/gbvp/resources.html
+- Gender-Based Violence Program FAQ (describes women’s shelters, resource centres, and second-stage housing): https://www.manitoba.ca/wage/gbvp/faqs.html
+- EI maternity and parental benefits (rates and overview, page updated 22 October 2026): https://www.canada.ca/en/services/benefits/ei/ei-maternity-parental.html
+- EI maternity eligibility, including that maternity benefits are available regardless of gender identity: https://www.canada.ca/en/services/benefits/ei/ei-maternity-parental/eligibility.html

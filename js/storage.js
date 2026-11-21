@@ -26,7 +26,9 @@ BF.emptyProfile = function () {
     hasResp: false,
     receivesOas: false,
     receivesEia: false,
-    spouseReceivesGis: false
+    spouseReceivesGis: false,
+    businessOwner: false,
+    tradesApprentice: false
   };
 };
 
@@ -48,7 +50,9 @@ BF.defaultState = function () {
       accountantName: "",
       dtcAssistanceFee: 0
     },
-    viewed: "home"
+    viewed: "home",
+    alreadyReceiving: {},
+    alreadyConfirmed: false
   };
 };
 
@@ -74,6 +78,8 @@ BF.loadState = function () {
     if (!Array.isArray(out.referralLedger)) out.referralLedger = [];
     if (!Array.isArray(out.idMeta)) out.idMeta = [];
     if (!Array.isArray(out.selectedIds)) out.selectedIds = [];
+    if (!out.alreadyReceiving || typeof out.alreadyReceiving !== "object") out.alreadyReceiving = {};
+    if (typeof out.alreadyConfirmed !== "boolean") out.alreadyConfirmed = false;
     return out;
   } catch (err) {
     return BF.defaultState();

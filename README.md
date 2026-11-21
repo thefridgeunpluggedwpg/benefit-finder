@@ -4,7 +4,7 @@ A prototype web app for a Manitoba financial-planner client. It helps one person
 
 **Live (when published):** https://thefridgeunpluggedwpg.github.io/benefit-finder/
 
-Version **1.0.0**. The product name lives in one place: `js/config.js` (`BF.APP_NAME`).
+Version **1.1.0**. The product name lives in one place: `js/config.js` (`BF.APP_NAME`).
 
 This is a **prototype — demo build**. The badge is visible in the app. It does **not** submit applications to the CRA, Service Canada, or the Government of Manitoba. There is no public API that would let an app do that on someone’s behalf.
 
@@ -13,13 +13,14 @@ This is a **prototype — demo build**. The badge is visible in the app. It does
 1. One intake form (background, optional gender and ethnicity, age, province, income, children, disability, student, housing, and similar eligibility questions).
 2. A government ID upload early in the form. Images stay on the device (IndexedDB). They are never transmitted by this build.
 3. Matching against a catalog of real programs, using official rules and amounts gathered from canada.ca and gov.mb.ca on 21 November 2026. See `research/SOURCES.md`.
-4. An upfront approximate total, broken down by program, labelled with the official benefit year. If an amount cannot be verified, the row says **amount varies** and is left out of the total.
-5. The user reviews and approves selected programs. Approval only creates a packet on the device: a prefilled summary, the official program link, and a document checklist.
-6. Tax-related programs (claimed on a tax return or through the CRA — for example CCB, the Groceries and Essentials Benefit, CWB, the DTC, and Manitoba tax credits) go to an **accountant queue**. Other programs are marked **submit directly**.
-7. A progress tracker. Status moves **Submitted → In review → Approved** (or **Denied**), with dates. The owner advances status by hand.
-8. Owner fee: **2–4%** of approved finds, default **3%**, shown before approval. Configurable in the owner desk.
-9. Referral credits: each user gets a referral code. When a referred user’s finds are approved, the referrer earns a configurable bonus (default **1%**) on the same percentage base as the owner fee. There is a referral dashboard.
-10. An owner desk: the client on this device, matches, statuses, fees owed, referral credits owed, and the accountant queue.
+4. After matching, a one-screen checklist asks “Do you already receive [program]?” for every match. Yes hides it from the results and the dollar total, and keeps it in a collapsed Already receiving list so it can be undone. Answers are saved on the device.
+5. An upfront approximate total, broken down by program, labelled with the official benefit year. If an amount cannot be verified, the row says **amount varies** and is left out of the total. Loans are labelled as loans and are also left out of the total.
+6. The user reviews and approves selected programs. Approval only creates a packet on the device: a prefilled summary, the official program link, and a document checklist.
+7. Tax-related programs (claimed on a tax return or through the CRA — for example CCB, the Groceries and Essentials Benefit, CWB, the DTC, and Manitoba tax credits) go to an **accountant queue**. Other programs are marked **submit directly**.
+8. A progress tracker. Status moves **Submitted → In review → Approved** (or **Denied**), with dates. The owner advances status by hand.
+9. Owner fee: **2–4%** of approved finds, default **3%**, shown before approval. Configurable in the owner desk.
+10. Referral credits: each user gets a referral code. When a referred user’s finds are approved, the referrer earns a configurable bonus (default **1%**) on the same percentage base as the owner fee. There is a referral dashboard.
+11. An owner desk: the client on this device, matches, statuses, fees owed, referral credits owed, and the accountant queue.
 
 ## Fee and Disability Tax Credit rules
 
@@ -27,17 +28,17 @@ The owner percentage applies only to approved amounts that are **not** Disabilit
 
 The [Disability Tax Credit Promoters Restrictions Act](https://laws-lois.justice.gc.ca/eng/acts/D-2.8/section-3.html) and the [Regulations (SOR/2021-55)](https://laws-lois.justice.gc.ca/eng/regulations/SOR-2021-55/FullText.html) set a **$100** maximum fee for a DTC eligibility request and **$100 per taxation year** for related deductions. The [CRA states](https://www.canada.ca/en/revenue-agency/services/tax/individuals/segments/tax-credits-deductions-persons-disabilities/disability-tax-credit/promoters-restrictions-regulation.html) that the regulations are **suspended by a court injunction** until further notice. This app still applies the $100 cap and leaves DTC-related amounts out of the percentage fee. I did not find a similar statutory fee cap for the other programs in this catalog.
 
-## Programs in this catalog (24)
+## Programs in this catalog (29)
 
-**Federal:** Canada Child Benefit; Child Disability Benefit; Canada Groceries and Essentials Benefit (formerly GST/HST credit); Canada Workers Benefit; CWB disability supplement; Disability Tax Credit; Old Age Security; Guaranteed Income Supplement; Allowance (ages 60–64); Allowance for the Survivor; Canada Disability Benefit; Canadian Dental Care Plan; Canada Learning Bond; Canada Education Savings Grant; Canada Disability Savings Grant; Canada Student Grant; Non-Insured Health Benefits.
+**Federal:** Canada Child Benefit; Child Disability Benefit; Canada Groceries and Essentials Benefit (formerly GST/HST credit); Canada Workers Benefit; CWB disability supplement; Disability Tax Credit; Old Age Security; Guaranteed Income Supplement; Allowance (ages 60–64); Allowance for the Survivor; Canada Disability Benefit; Canadian Dental Care Plan; Canada Learning Bond; Canada Education Savings Grant; Canada Disability Savings Grant; Canada Student Grant; Non-Insured Health Benefits; Women Entrepreneurship Loan Fund (loan, women entrepreneurs, up to $50,000, not in the cash total); Women Entrepreneurship Strategy business support (support service); Employment Insurance maternity benefits (keyed on pregnancy, any gender).
 
-**Manitoba:** Rent Assist (non-EIA); Manitoba Child Benefit; Homeowners Affordability Tax Credit (this replaced the Education Property Tax Credit); Renters Affordability Tax Credit; Seniors’ School Tax Rebate; 55 PLUS; Manitoba Prenatal Benefit.
+**Manitoba:** Rent Assist (non-EIA); Manitoba Child Benefit; Homeowners Affordability Tax Credit (this replaced the Education Property Tax Credit); Renters Affordability Tax Credit; Seniors’ School Tax Rebate; 55 PLUS; Manitoba Prenatal Benefit; Manitoba women in the trades supports (Office to Advance Women Apprentices and LauncHER into Trades, support service); Manitoba Gender-Based Violence Program supports (shelters, resource centres, and second-stage housing, support service).
 
 The Education Property Tax Credit is **not** listed as a current program because Manitoba replaced it with the Homeowners Affordability Tax Credit.
 
 ## Privacy
 
-There is no backend. Answers and ID files stay in `localStorage` and IndexedDB on the device. Gender and ethnicity are optional, include “prefer not to say,” and are not used for matching in this catalog except the optional Indigenous identity question, which is used only for Non-Insured Health Benefits (First Nations and Inuit).
+There is no backend. Answers and ID files stay in `localStorage` and IndexedDB on the device. Gender and ethnicity are optional and include “prefer not to say.” Gender is used only to list programs that target women or men. If you prefer not to say, those targeted programs are left out. This catalog does not currently include a verified government cash benefit that is only for men. Ethnicity is not used for matching except the optional Indigenous identity question, which is used only for Non-Insured Health Benefits (First Nations and Inuit).
 
 ## What a production backend would need
 
