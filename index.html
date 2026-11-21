@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Benefit Finder</title>
+<meta name="description" content="Find federal and Manitoba benefits you may qualify for, see an approximate total, and approve an application packet. Nothing is sent to the government from this app.">
+<meta name="theme-color" content="#163142">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Benefit Finder">
+<meta name="application-name" content="Benefit Finder">
+<meta name="benefit-finder-version" content="1.0.0">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="icon" href="icons/icon-192.png" type="image/png" sizes="192x192">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png" sizes="180x180">
+<link rel="stylesheet" href="vendor/fonts/fonts.css">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<a class="skip" href="#view">Skip to content</a>
+<header class="app-header">
+  <button class="brand" type="button" id="btnHome" aria-label="Benefit Finder home">
+    <img src="icons/icon.svg" alt="" width="28" height="28">
+    <span>
+      <strong id="appName">Benefit Finder</strong>
+      <small>Federal and Manitoba</small>
+    </span>
+  </button>
+  <div class="header-actions">
+    <span class="badge-proto" title="This is a prototype. It does not submit applications to government.">Prototype</span>
+    <button class="text-btn" type="button" id="btnInstall" hidden>Install</button>
+  </div>
+</header>
+<div id="installBanner" role="region" aria-label="Install this app" hidden>
+  <p id="installCopy"></p>
+  <div class="row">
+    <button class="btn" type="button" id="btnInstallNow">Install</button>
+    <button class="btn secondary" type="button" id="btnInstallDismiss" style="background:#fff;color:#163142;border-color:transparent">Not now</button>
+  </div>
+  <ol class="ios-steps" id="iosSteps" hidden>
+    <li>Tap the Share button in Safari.</li>
+    <li>Tap Add to Home Screen.</li>
+    <li>Tap Add.</li>
+  </ol>
+</div>
+<main id="view" tabindex="-1"></main>
+<nav class="tabbar" aria-label="Main">
+  <button type="button" data-view="home" aria-current="page">Home</button>
+  <button type="button" data-view="intake">Form</button>
+  <button type="button" data-view="results" id="tabResults" disabled>Matches</button>
+  <button type="button" data-view="tracker" id="tabTracker" disabled>Tracker</button>
+  <button type="button" data-view="more">More</button>
+</nav>
+<script src="js/config.js"></script>
+<script src="js/programs.js"></script>
+<script src="js/match.js"></script>
+<script src="js/storage.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
