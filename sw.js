@@ -1,4 +1,4 @@
-const CACHE = 'benefit-finder-v1.1.0';
+const CACHE = 'benefit-finder-v1.1.1';
 const FILES = [
   './',
   'index.html',
@@ -38,5 +38,18 @@ self.addEventListener('activate', (e) => {
 });
 self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET') return;
-  e.respondWith(caches.match(e.request, { ignoreSearch: true }).then((r) => r || fetch(e.request)));
+  const url = new URL(e.request.url);
+  if (url.origin !== self.location.origin) return;
+  // Network-first: always try the live site so updates show on the first open; fall back to cache offline.
+  e.respondWith(
+    fetch(e.request, { cache: 'no-cache' })
+      .then((res) => {
+        if (res && res.ok) {
+          const copy = res.clone();
+          caches.open(CACHE).then((c) => c.put(e.request, copy)).catch(() => {});
+        }
+        return res;
+      })
+      .catch(() => caches.match(e.request, { ignoreSearch: true }).then((r) => r || caches.match('index.html')))
+  );
 });

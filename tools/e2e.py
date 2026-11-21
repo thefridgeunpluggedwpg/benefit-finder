@@ -1,4 +1,4 @@
-"""Benefit Finder v1.1.0 end-to-end tests (Playwright + local Chrome).
+"""Benefit Finder v1.1.1 end-to-end tests (Playwright + local Chrome).
 Serve the app on 127.0.0.1:8940 and run:
   /workspace/.venv-pw/bin/python tools/e2e.py
 Exit code 1 if any test fails.
@@ -74,7 +74,7 @@ def main():
         check("fees: 3% applies to non-DTC amounts only ($451.20)", abs(fees.get("percentFee") - 451.20) < 0.02 and abs(fees.get("baseFound") - 15040) < 0.01, fees)
         check("fees: DTC amount is excluded and $100 cap is recorded", fees.get("dtcCapCad") == 100 and fees.get("dtcFound") == 3480, fees)
         check("catalog has at least 20 official programs", page.evaluate("BF.PROGRAMS.length") >= 20, page.evaluate("BF.PROGRAMS.length"))
-        check("version is 1.1.0", page.evaluate("BF.VERSION") == "1.1.0", page.evaluate("BF.VERSION"))
+        check("version is 1.1.1", page.evaluate("BF.VERSION") == "1.1.1", page.evaluate("BF.VERSION"))
 
         WOMEN_IDS = ["wes-loan-fund", "wes-business-support", "mb-women-trades", "mb-gbv-supports"]
 
