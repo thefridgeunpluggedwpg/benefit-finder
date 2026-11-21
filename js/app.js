@@ -187,6 +187,7 @@
     if (v === "home") root.innerHTML = viewHome();
     else if (v === "intake") root.innerHTML = viewIntake();
     else if (v === "already") root.innerHTML = viewAlready();
+    else if (v === "alreadyEdit") root.innerHTML = viewAlreadyEdit();
     else if (v === "results") root.innerHTML = viewResults();
     else if (v === "tracker") root.innerHTML = viewTracker();
     else if (v === "referral") root.innerHTML = viewReferral();
@@ -466,6 +467,22 @@
     return fmtMoney(est.amountCad);
   }
 
+  // Separate page (not in results) for undoing a mistaken Yes. Already-received items never show in results.
+  function viewAlreadyEdit() {
+    var t = BF.totals(matches(), { skipIds: skipAlreadyIds() });
+    var rows = (t.alreadyReceiving || []).map(function (m) {
+      return '<div class="already-hidden-row" data-already-hidden="' + esc(m.program.id) + '">' +
+        '<span>' + esc(m.program.name) + '</span>' +
+        '<button class="btn ghost" type="button" data-undo-already="' + esc(m.program.id) + '">I do not receive this</button>' +
+      '</div>';
+    }).join("") || '<p class="fine">Nothing is marked as already received.</p>';
+    return '<section class="panel" id="alreadyList">' +
+      '<h1>Programs you already receive</h1>' +
+      '<p>These are never suggested or counted. Undo one only if you chose Yes by mistake.</p>' + rows +
+      '<div class="actions"><button class="btn" type="button" data-go="results">Back to results</button></div>' +
+    '</section>';
+  }
+
   function viewAlready() {
     var everything = matches().filter(function (m) { return m.estimate.match; });
     state.lastMatchCount = everything.length;
@@ -547,14 +564,9 @@
     }
     var alreadyBlock = "";
     if (t.alreadyReceiving && t.alreadyReceiving.length) {
-      var hiddenRows = t.alreadyReceiving.map(function (m) {
-        return '<div class="already-hidden-row" data-already-hidden="' + esc(m.program.id) + '">' +
-          '<span>' + esc(m.program.name) + '</span>' +
-          '<button class="btn ghost" type="button" data-undo-already="' + esc(m.program.id) + '">Include in results</button>' +
-        '</div>';
-      }).join("");
-      alreadyBlock = '<details id="alreadyList" class="already-list"><summary>Already receiving (' + t.alreadyReceiving.length + ') — not suggested</summary>' +
-        '<p class="fine">You said you already receive these, so they are left out of your results and the total and will not be suggested again. Include one only if you chose Yes by mistake.</p>' + hiddenRows + '</details>';
+      var n = t.alreadyReceiving.length;
+      alreadyBlock = '<p class="fine" id="alreadyHiddenNote">' + n + ' program' + (n === 1 ? '' : 's') + ' you already receive ' + (n === 1 ? 'is' : 'are') + ' left out and will not be suggested again. ' +
+        '<button class="btn ghost" type="button" data-go="alreadyEdit">Undo a Yes I chose by mistake</button></p>';
     }
     return (
       '<section class="panel" id="resultsPanel">' +
