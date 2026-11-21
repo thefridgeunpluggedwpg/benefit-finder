@@ -54,7 +54,7 @@ def main():
         sw = page.evaluate("""async () => {
           const r = await fetch('sw.js');
           const t = await r.text();
-          return t.includes("CACHE = 'benefit-finder-v1.0.0'") && t.includes('index.html');
+          return t.includes("CACHE = 'benefit-finder-v" + BF.VERSION + "'") && t.includes('index.html');
         }""")
         check("service worker file caches the app shell", sw is True)
 
