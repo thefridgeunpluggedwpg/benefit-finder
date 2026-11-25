@@ -203,7 +203,7 @@
     return (
       '<section class="panel">' +
         '<p class="fine">Prototype — demo build. This app does not send applications to the government.</p>' +
-        '<h1>See which benefits may apply, then approve a packet for each one.</h1>' +
+        '<h1>Estimate your 2025 tax refund and see which benefits may apply.</h1>' +
         '<p class="lede">Benefit Finder looks at your situation and matches it to official federal and Manitoba programs. You get an approximate dollar total first. Nothing leaves this phone unless you copy it out yourself.</p>' +
         '<div class="notice">' +
           '<p>ID images, income, ethnicity, and other answers stay on this device (in your browser storage). They are not uploaded or transmitted by this prototype.</p>' +
@@ -323,11 +323,14 @@
 
   function stepHousehold() {
     var kids = (state.profile.children || []).map(function (c, i) {
-      return '<div class="grid-2" data-child="' + i + '">' +
-        '<label class="field"><span>Child ' + (i + 1) + ' age</span>' +
-          '<input type="number" min="0" max="25" inputmode="numeric" name="childAge' + i + '" value="' + esc(c.age) + '"></label>' +
-        '<label class="field"><span>&nbsp;</span><label class="choice"><input type="checkbox" name="childDtc' + i + '"' + (c.hasDtc ? " checked" : "") + '><span>Eligible for the Disability Tax Credit</span></label></label>' +
-        '</div>';
+      return '<div class="swipe-row" data-swipe-row="' + i + '">' +
+        '<button class="swipe-delete" type="button" data-delete-child="' + i + '" aria-label="Delete child ' + (i + 1) + '">Delete</button>' +
+        '<div class="swipe-content grid-2" data-child="' + i + '">' +
+          '<label class="field"><span>Child ' + (i + 1) + ' age</span>' +
+            '<input type="number" min="0" max="25" inputmode="numeric" name="childAge' + i + '" value="' + esc(c.age) + '"></label>' +
+          '<label class="field"><span>&nbsp;</span><label class="choice"><input type="checkbox" name="childDtc' + i + '"' + (c.hasDtc ? " checked" : "") + '><span>Eligible for the Disability Tax Credit</span></label></label>' +
+        '</div>' +
+      '</div>';
     }).join("");
     return (
       '<h1>Household and income</h1>' +
@@ -339,6 +342,20 @@
       '<label class="field"><span>Working income (if different from household income)</span>' +
         '<input type="number" name="workingIncome" min="0" step="1" inputmode="decimal" value="' + esc(val("workingIncome")) + '">' +
       '</label>' +
+      '<label class="choice"><input type="checkbox" name="selfEmployed"' + (val("selfEmployed") ? " checked" : "") + '><span>My working income is self-employed (not on a T4)</span></label>' +
+      '<div class="grid-2">' +
+        '<label class="field"><span>Tax already deducted on T4s (Box 22, optional)</span>' +
+          '<input type="number" name="taxWithheld" min="0" step="1" inputmode="decimal" value="' + esc(val("taxWithheld")) + '">' +
+          '<span class="hint">Used to estimate your 2025 tax refund or balance owing.</span>' +
+        '</label>' +
+        '<label class="field"><span>2025 RRSP contributions deducted (optional)</span>' +
+          '<input type="number" name="rrspDeduction" min="0" step="1" inputmode="decimal" value="' + esc(val("rrspDeduction")) + '">' +
+        '</label>' +
+      '</div>' +
+      '<label class="field"><span>Spouse or partner’s 2025 net income (optional)</span>' +
+        '<input type="number" name="spouseIncome" min="0" step="1" inputmode="decimal" value="' + esc(val("spouseIncome")) + '">' +
+        '<span class="hint">Optional — helps estimate individual tax and spousal credit when married or common-law.</span>' +
+      '</label>' +
       '<div class="grid-2">' +
         '<label class="field"><span>Housing</span>' +
           '<select name="housing">' + opts({ rent: "I rent my home", own: "I own my principal residence", other: "Other or neither" }, val("housing") || "rent") + '</select>' +
@@ -348,6 +365,7 @@
         '</label>' +
       '</div>' +
       '<p>Children in your care</p>' +
+      (kids ? '<p class="fine swipe-hint">Swipe left on a child row to reveal Delete.</p>' : '') +
       '<div id="kids">' + (kids || '<p class="muted">No children added.</p>') + '</div>' +
       '<div class="actions"><button class="btn ghost" type="button" id="btnAddChild">Add a child</button></div>' +
       '<label class="choice"><input type="checkbox" name="pregnant"' + (val("pregnant") ? " checked" : "") + '><span>I am pregnant</span></label>' +
@@ -521,6 +539,82 @@
     );
   }
 
+  function fmtMoneyCents(n) {
+    if (n == null || !isFinite(n)) return "—";
+    return new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD" }).format(n);
+  }
+
+  function renderTaxSection() {
+    if (typeof BF.estimateTaxRefund !== "function") return "";
+    var tax = BF.estimateTaxRefund(state.profile, { alreadyReceiving: state.alreadyReceiving || {} });
+    var heroClass = "tax-payable";
+    var heroLabel = "Estimated 2025 tax payable";
+    var heroAmount = fmtMoneyCents(tax.totalTaxPayable);
+    var heroCaption = "Estimated 2025 income tax before T4 deductions. Enter tax already deducted (T4 Box 22) in Step 3 to see your refund or balance owing.";
+
+    if (tax.hasTaxWithheld || tax.totalRefundableCredits > 0 || tax.totalTaxPayable === 0) {
+      if (tax.status === "refund") {
+        heroClass = "tax-refund";
+        heroLabel = "Estimated 2025 tax refund";
+        heroAmount = fmtMoneyCents(tax.amountAbs);
+        heroCaption = tax.hasTaxWithheld
+          ? "Based on 2025 CRA" + (tax.isManitoba ? " & Manitoba" : "") + " rates, your T4 tax deducted, and eligible refundable tax credits."
+          : "Based on eligible 2025 refundable tax credits (no T4 Box 22 tax deducted was entered).";
+      } else {
+        heroClass = "tax-owing";
+        heroLabel = "Estimated 2025 balance owing";
+        heroAmount = fmtMoneyCents(tax.amountAbs);
+        heroCaption = "Estimated tax payable minus T4 tax already deducted and eligible refundable credits.";
+      }
+    }
+
+    var creditRows = (tax.refundableCredits || []).map(function (c) {
+      return '<tr><td>' + esc(c.label) + '</td><td>+' + esc(fmtMoneyCents(c.amount)) + '</td></tr>';
+    }).join("");
+
+    var netLabel = (tax.hasTaxWithheld || tax.totalRefundableCredits > 0 || tax.totalTaxPayable === 0)
+      ? (tax.status === "refund" ? "Estimated refund" : "Estimated balance owing")
+      : "Estimated tax payable (before Box 22)";
+    var netVal = (tax.hasTaxWithheld || tax.totalRefundableCredits > 0 || tax.totalTaxPayable === 0)
+      ? fmtMoneyCents(tax.amountAbs)
+      : fmtMoneyCents(tax.totalTaxPayable);
+
+    var notesHtml = (tax.assumptions || []).map(function (a) {
+      return '<p class="fine">' + esc(a) + '</p>';
+    }).join("");
+
+    return (
+      '<section class="panel" id="taxEstimatePanel">' +
+        '<p class="fine">2025 Tax Year Estimate · ' + (tax.isManitoba ? 'Federal + Manitoba' : 'Federal (provincial outside MB varies)') + '</p>' +
+        '<div class="tax-hero ' + heroClass + '">' +
+          '<div class="tax-label">' + esc(heroLabel) + '</div>' +
+          '<div class="amount" id="taxRefundAmount">' + esc(heroAmount) + '</div>' +
+          '<p class="caption">' + esc(heroCaption) + '</p>' +
+        '</div>' +
+        '<div class="tax-rates">' +
+          '<span class="tag">Marginal rate: ' + esc(String(tax.marginalRatePercent)) + '%</span>' +
+          '<span class="tag">Effective tax rate: ' + esc(String(tax.effectiveRatePercent)) + '%</span>' +
+        '</div>' +
+        '<div class="table-wrap"><table class="tax-table"><tbody>' +
+          '<tr><td>Individual gross income</td><td>' + esc(fmtMoneyCents(tax.grossIncome)) + '</td></tr>' +
+          (tax.rrspDeduction > 0 ? '<tr><td>RRSP deduction</td><td>−' + esc(fmtMoneyCents(tax.rrspDeduction)) + '</td></tr>' : '') +
+          (tax.cppDeduction > 0 ? '<tr><td>CPP enhanced / self-employed deduction</td><td>−' + esc(fmtMoneyCents(tax.cppDeduction)) + '</td></tr>' : '') +
+          '<tr><td>Estimated taxable income</td><td>' + esc(fmtMoneyCents(tax.taxableIncome)) + '</td></tr>' +
+          '<tr><td>Federal tax (2025 brackets minus 14.5% credits)</td><td>' + esc(fmtMoneyCents(tax.federalTax)) + '</td></tr>' +
+          (tax.isManitoba ? '<tr><td>Manitoba tax (2025 brackets minus 10.8% credits)</td><td>' + esc(fmtMoneyCents(tax.manitobaTax)) + '</td></tr>' : '') +
+          (tax.selfEmployedCppPayable > 0 ? '<tr><td>Self-employed CPP contributions on return</td><td>' + esc(fmtMoneyCents(tax.selfEmployedCppPayable)) + '</td></tr>' : '') +
+          (creditRows ? creditRows : '') +
+          (tax.hasTaxWithheld ? '<tr><td>Income tax already deducted (T4 Box 22)</td><td>−' + esc(fmtMoneyCents(tax.taxWithheld)) + '</td></tr>' : '') +
+          '<tr class="tax-net-row"><td>' + esc(netLabel) + '</td><td>' + esc(netVal) + '</td></tr>' +
+        '</tbody></table></div>' +
+        notesHtml +
+        '<div class="notice stamp" id="taxDisclaimer" style="margin-top:0.75rem">' +
+          '<p><strong>Estimate only — not tax advice.</strong> Actual tax refunds or balances owing depend on all your T-slips, deductions, and CRA assessment. File through CRA NETFILE-certified software, a certified tax preparer, or the accountant queue below.</p>' +
+        '</div>' +
+      '</section>'
+    );
+  }
+
   function viewResults() {
     var all = matches();
     var t = BF.totals(all, { skipIds: skipAlreadyIds() });
@@ -569,6 +663,7 @@
         '<button class="btn ghost" type="button" data-go="alreadyEdit">Undo a Yes I chose by mistake</button></p>';
     }
     return (
+      renderTaxSection() +
       '<section class="panel" id="resultsPanel">' +
         '<p class="fine">Prototype — demo build. Estimates are approximate.</p>' +
         '<div class="total-block">' +
@@ -884,6 +979,36 @@
         render();
       });
     });
+    $$("[data-swipe-row]").forEach(function (row) {
+      var startX = 0;
+      var tracking = false;
+      row.addEventListener("touchstart", function (ev) {
+        if (!ev.touches || !ev.touches.length) return;
+        startX = ev.touches[0].clientX;
+        tracking = true;
+      }, { passive: true });
+      row.addEventListener("touchmove", function (ev) {
+        if (!tracking || !ev.touches || !ev.touches.length) return;
+        var dx = ev.touches[0].clientX - startX;
+        if (dx < -40) {
+          row.classList.add("swiped");
+          tracking = false;
+        } else if (dx > 30) {
+          row.classList.remove("swiped");
+          tracking = false;
+        }
+      }, { passive: true });
+      row.addEventListener("touchend", function () { tracking = false; }, { passive: true });
+    });
+    $$("[data-delete-child]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var idx = Number(btn.getAttribute("data-delete-child"));
+        if (form) readForm(form);
+        state.profile.children = (state.profile.children || []).filter(function (_, i) { return i !== idx; });
+        save();
+        render();
+      });
+    });
   }
 
   function onIdFiles(ev) {
@@ -960,7 +1085,8 @@
           { label: "Marital status", value: p.marital || "—" },
           { label: "Household income entered", value: p.householdIncome === "" ? "Not provided" : fmtMoney(num(p.householdIncome)) },
           { label: "Housing", value: p.housing || "—" },
-          { label: "Children in care", value: String((p.children || []).length) }
+          { label: "Children in care", value: String((p.children || []).length) },
+          { label: "Tax already deducted (T4 Box 22)", value: p.taxWithheld === "" ? "Not provided" : fmtMoney(num(p.taxWithheld)) }
         ]
       };
       state.applications.push(app);

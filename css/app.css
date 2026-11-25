@@ -458,3 +458,104 @@ th { font-weight: 700; font-size: 0.8rem; color: var(--ink-soft); }
   padding: 0.45rem 0;
   border-top: 1px solid var(--rule);
 }
+
+/* Native-feel SOP: no accidental text selection, callouts, or tap flash except form inputs */
+html, body {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+input, textarea, select, [contenteditable] {
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
+}
+button, a, label, summary {
+  touch-action: manipulation;
+}
+
+/* 2025 Tax Refund Estimator */
+.tax-hero {
+  padding: 0.9rem 0 0.7rem;
+  border-bottom: 1px solid var(--rule);
+  margin-bottom: 0.85rem;
+}
+.tax-hero .tax-label {
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ink-soft);
+}
+.tax-hero .amount {
+  font-family: var(--serif);
+  font-weight: 600;
+  font-size: 2.15rem;
+  letter-spacing: -0.03em;
+  line-height: 1.08;
+  margin: 0.15rem 0 0.25rem;
+}
+.tax-hero.tax-refund .amount { color: var(--spruce-deep); }
+.tax-hero.tax-owing .amount { color: var(--alert); }
+.tax-hero.tax-payable .amount { color: var(--ink); }
+.tax-table td:last-child, .tax-table th:last-child {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.tax-table tr.tax-net-row td {
+  font-weight: 700;
+  border-top: 2px solid var(--ink);
+  border-bottom: 0;
+  padding-top: 0.6rem;
+}
+.tax-rates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.75rem 0;
+}
+.tax-subhead {
+  margin: 1rem 0 0.45rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--rule);
+}
+
+/* Gesture SOP: left swipe reveals Delete button on child rows, never instant delete */
+.swipe-row {
+  position: relative;
+  overflow: hidden;
+  border-radius: 10px;
+  border: 1px solid var(--rule);
+  background: #fff;
+  margin-bottom: 0.65rem;
+}
+.swipe-delete {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 84px;
+  border: 0;
+  background: var(--denied);
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.swipe-content {
+  position: relative;
+  z-index: 1;
+  background: #fff;
+  padding: 0.65rem 0.75rem 0.15rem;
+  transition: transform 0.18s ease-out;
+}
+.swipe-row.swiped .swipe-content {
+  transform: translateX(-84px);
+}
+.swipe-hint {
+  margin: 0 0 0.4rem;
+}

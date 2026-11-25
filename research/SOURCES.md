@@ -43,3 +43,15 @@ Amounts and rules in Benefit Finder come from these pages. If a figure could not
 - Gender-Based Violence Program FAQ (describes women’s shelters, resource centres, and second-stage housing): https://www.manitoba.ca/wage/gbvp/faqs.html
 - EI maternity and parental benefits (rates and overview, page updated 22 October 2026): https://www.canada.ca/en/services/benefits/ei/ei-maternity-parental.html
 - EI maternity eligibility, including that maternity benefits are available regardless of gender identity: https://www.canada.ca/en/services/benefits/ei/ei-maternity-parental/eligibility.html
+
+## 2025 Income Tax Brackets, Credits & Payroll Deductions (added 24 November 2026)
+
+- 2025 Federal & Provincial Tax Brackets (14.5% lowest federal rate, Manitoba 10.8% / 12.75% / 17.4%): https://www.canada.ca/en/revenue-agency/services/tax/individuals/tax-rates-brackets/last-year.html
+- 2025 Basic Personal Amount (Federal $16,129; Manitoba $15,780): https://www.canada.ca/en/revenue-agency/services/tax/individuals/topics/about-your-tax-return/tax-return/completing-a-tax-return/deductions-credits-expenses/line-30000-basic-personal-amount.html
+- 2025 Age Amount (Federal $9,028; Manitoba $3,728): https://www.canada.ca/en/revenue-agency/services/tax/individuals/topics/about-your-tax-return/tax-return/completing-a-tax-return/deductions-credits-expenses/line-30100-amount.html
+- 2025 Canada Employment Amount ($1,471): https://www.canada.ca/en/revenue-agency/services/tax/individuals/topics/about-your-tax-return/tax-return/completing-a-tax-return/deductions-credits-expenses/line-31260-canada-employment-amount.html
+- 2025 Disability Amount self ($10,138): https://www.canada.ca/en/revenue-agency/services/tax/individuals/topics/about-your-tax-return/tax-return/completing-a-tax-return/deductions-credits-expenses/line-31600-disability-amount-self.html
+- 2025 CPP / CPP2 Rates & Maximums (YMPE $71,300, YAMPE $81,200): https://www.canada.ca/content/dam/cra-arc/migration/cra-arc/tx/bsnss/tpcs/pyrll/t4032/2025/t4032-oc-7-25e.pdf
+- 2025 EI Premium Rates & Maximums ($65,700 at 1.64%, max $1,077.48): https://www.canada.ca/en/revenue-agency/services/tax/businesses/topics/payroll/payroll-deductions-contributions/employment-insurance-ei/ei-premium-rates-maximums.html
+- 2025 Canada Workers Benefit (Schedule 6: $1,633 single, $2,813 family, $843 disability supplement): https://www.canada.ca/en/revenue-agency/services/tax/individuals/topics/about-your-tax-return/tax-return/completing-a-tax-return/deductions-credits-expenses/line-45300-canada-workers-benefit-cwb/how-much-you-can-get.html
+- 2025 Manitoba Personal Income Taxes & Credits: https://www.gov.mb.ca/finance/personal/ptaxes.html and https://www.gov.mb.ca/finance/personal/pcredits.html

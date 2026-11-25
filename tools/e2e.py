@@ -1,4 +1,4 @@
-"""Benefit Finder v1.1.3 end-to-end tests (Playwright + local Chrome).
+"""Benefit Finder v1.2.0 end-to-end tests (Playwright + local Chrome).
 Serve the app on 127.0.0.1:8940 and run:
   /workspace/.venv-pw/bin/python tools/e2e.py
 Exit code 1 if any test fails.
@@ -74,7 +74,7 @@ def main():
         check("fees: 3% applies to non-DTC amounts only ($451.20)", abs(fees.get("percentFee") - 451.20) < 0.02 and abs(fees.get("baseFound") - 15040) < 0.01, fees)
         check("fees: DTC amount is excluded and $100 cap is recorded", fees.get("dtcCapCad") == 100 and fees.get("dtcFound") == 3480, fees)
         check("catalog has at least 20 official programs", page.evaluate("BF.PROGRAMS.length") >= 20, page.evaluate("BF.PROGRAMS.length"))
-        check("version is 1.1.3", page.evaluate("BF.VERSION") == "1.1.3", page.evaluate("BF.VERSION"))
+        check("version is 1.2.0", page.evaluate("BF.VERSION") == "1.2.0", page.evaluate("BF.VERSION"))
 
         WOMEN_IDS = ["wes-loan-fund", "wes-business-support", "mb-women-trades", "mb-gbv-supports"]
 
@@ -331,6 +331,46 @@ def main():
         show_results_for(dict(woman_profile, gender="man"))
         missing_m = [pid for pid in WOMEN_IDS if page.locator('[data-program-id="%s"]' % pid).count() != 0]
         check("Male hides women-targeted programs in the UI and does not error", missing_m == [] and not errs, missing_m)
+
+
+        # --- 2025 Tax Refund Estimator (lean essential checks) ---
+        show_results_for({
+            "displayName": "Tax Client", "province": "MB", "age": 32, "marital": "single",
+            "householdIncome": 55000, "working": True, "workingIncome": 55000,
+            "housing": "own", "rrspDeduction": 3000, "taxWithheld": 10500, "children": []
+        })
+        tax_text = page.inner_text("#taxEstimatePanel")
+        check("tax estimator shows 2025 refund ($2,516.24)", "estimated 2025 tax refund" in tax_text.lower() and "2,516.24" in tax_text, page.inner_text("#taxRefundAmount"))
+        check("tax estimator shows plain-language disclaimer", "not tax advice" in page.inner_text("#taxDisclaimer").lower())
+
+        # Permanent rule: marking CWB & MB RATC as already received excludes them from tax refund too
+        show_results_for({
+            "displayName": "Renter Client", "province": "MB", "age": 28, "marital": "single",
+            "householdIncome": 24000, "working": True, "workingIncome": 24000,
+            "housing": "rent", "monthlyRent": 1100, "taxWithheld": 1500, "children": []
+        })
+        check("low-income MB renter gets $2,300.41 refund with CWB + RATC", "2,300.41" in page.inner_text("#taxRefundAmount"), page.inner_text("#taxRefundAmount"))
+        page.click('button[data-go="already"]')
+        page.wait_for_selector('[data-already="cwb"][data-val="yes"]')
+        page.click('[data-already="cwb"][data-val="yes"]')
+        page.click('[data-already="ratc"][data-val="yes"]')
+        page.click("#btnToResults")
+        page.wait_for_selector("#taxRefundAmount")
+        check("alreadyReceiving excludes CWB and MB RATC from tax refund ($92.41)", "92.41" in page.inner_text("#taxRefundAmount"), page.inner_text("#taxRefundAmount"))
+
+        # Balance owing case + mobile viewport & native-feel CSS check
+        show_results_for({
+            "displayName": "Owing Client", "province": "MB", "age": 45, "marital": "single",
+            "householdIncome": 95000, "working": True, "workingIncome": 95000,
+            "housing": "own", "taxWithheld": 15000, "children": []
+        })
+        check("balance owing shown when tax withheld is short", "estimated 2025 balance owing" in page.inner_text("#taxEstimatePanel").lower())
+        mobile_ok = page.evaluate("""() => {
+          const overflow = document.documentElement.scrollWidth > window.innerWidth;
+          const bodySel = getComputedStyle(document.body).userSelect || getComputedStyle(document.body).webkitUserSelect;
+          return { overflow, bodySel };
+        }""")
+        check("mobile viewport has no horizontal overflow and native user-select", mobile_ok["overflow"] is False and mobile_ok["bodySel"] == "none", mobile_ok)
 
         check("no page errors", not errs, errs)
 
