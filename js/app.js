@@ -189,6 +189,7 @@
     else if (v === "already") root.innerHTML = viewAlready();
     else if (v === "alreadyEdit") root.innerHTML = viewAlreadyEdit();
     else if (v === "results") root.innerHTML = viewResults();
+    else if (v === "onboarding") root.innerHTML = viewOnboarding();
     else if (v === "tracker") root.innerHTML = viewTracker();
     else if (v === "referral") root.innerHTML = viewReferral();
     else if (v === "owner") root.innerHTML = viewOwner();
@@ -215,10 +216,10 @@
       '</section>' +
       '<section class="panel">' +
         '<h2>How it works</h2>' +
-        '<p>You fill one form, including a government ID upload early on, because most programs ask for ID later.</p>' +
+        '<p>You fill one form. A government ID upload is available later, during onboarding after a lead is closed or marked signed, because most programs ask for ID then.</p>' +
         '<p>Matching uses published rules only. If an official amount cannot be verified, the program shows “amount varies” instead of a number.</p>' +
         '<p>When you approve a program, this app builds a packet: a prefilled summary, the official application link, and a document checklist. Tax-related programs go to the owner’s accountant specialist queue. Other programs are marked “submit directly.” The owner updates status by hand: Submitted, In review, Approved, or Denied.</p>' +
-        '<p class="fine">Gender and ethnicity are optional and include “prefer not to say.” Gender is used only to list programs that target women or men. If you prefer not to say, those targeted programs are left out. Ethnicity is not used for matching in this catalog, except the optional Indigenous identity question for Non-Insured Health Benefits.</p>' +
+        '<p class="fine">Gender and background or ethnicity are optional and include “prefer not to say.” You can choose more than one background. They are used only to list official programs that target those groups. If you prefer not to say, those targeted programs are left out.</p>' +
       '</section>'
     );
   }
@@ -238,23 +239,23 @@
   }
 
   function stepTitle(n) {
-    return ["", "About you", "Government ID", "Household and income", "Your situation", "Review"][n] || "";
+    return ["", "About you", "Household and income", "Your situation", "Review"][n] || "";
   }
 
   function viewIntake() {
     var s = state.intakeStep || 1;
     if (s < 1) s = 1;
-    if (s > 5) s = 5;
-    var dots = [1, 2, 3, 4, 5].map(function (i) { return '<span class="' + (i <= s ? "on" : "") + '"></span>'; }).join("");
-    var body = [null, stepAbout, stepId, stepHousehold, stepSituation, stepReview][s]();
+    if (s > 4) s = 4;
+    var dots = [1, 2, 3, 4].map(function (i) { return '<span class="' + (i <= s ? "on" : "") + '"></span>'; }).join("");
+    var body = [null, stepAbout, stepHousehold, stepSituation, stepReview][s]();
     return (
       '<section class="panel">' +
         '<div class="stepper" aria-hidden="true">' + dots + '</div>' +
-        '<p class="step-label">Step ' + s + ' of 5 · ' + esc(stepTitle(s)) + '</p>' +
+        '<p class="step-label">Step ' + s + ' of 4 · ' + esc(stepTitle(s)) + '</p>' +
         '<form id="intakeForm" autocomplete="off">' + body +
           '<div class="actions">' +
             (s > 1 ? '<button class="btn secondary" type="button" id="btnBack">Back</button>' : "") +
-            (s < 5 ? '<button class="btn" type="submit" id="btnNext">Continue</button>' : '<button class="btn" type="submit" id="btnFind">Find my benefits</button>') +
+            (s < 4 ? '<button class="btn" type="submit" id="btnNext">Continue</button>' : '<button class="btn" type="submit" id="btnFind">Find my benefits</button>') +
           '</div>' +
         '</form>' +
       '</section>'
@@ -394,6 +395,15 @@
     return html;
   }
 
+  function identityFollowups() {
+    var html = genderFollowups(val("gender") || "prefer-not");
+    var eth = selectedEthnicity();
+    if (eth.indexOf("black") >= 0 && val("gender") !== "woman") {
+      html += '<label class="choice"><input type="checkbox" name="businessOwner"' + (val("businessOwner") ? " checked" : "") + '><span>I own a business or I am starting one</span></label>';
+    }
+    return html;
+  }
+
   function stepSituation() {
     return (
       '<h1>Your situation</h1>' +
@@ -407,17 +417,7 @@
       '<label class="choice"><input type="checkbox" name="dentalInsurance"' + (val("dentalInsurance") ? " checked" : "") + '><span>I have access to private dental insurance or coverage</span></label>' +
       '<label class="choice"><input type="checkbox" name="student"' + (val("student") ? " checked" : "") + '><span>I am a post-secondary student (or about to be)</span></label>' +
       '<label class="choice"><input type="checkbox" name="newcomer"' + (val("newcomer") ? " checked" : "") + '><span>I am a newcomer (in Canada less than five years)</span></label>' +
-      '<label class="field"><span>Indigenous identity (optional)</span>' +
-        '<select name="indigenous">' + opts({
-          "prefer-not": "Prefer not to say",
-          no: "No",
-          "first-nations": "First Nations",
-          inuit: "Inuit",
-          metis: "Métis",
-          yes: "Yes, I identify as Indigenous (no further detail)"
-        }, val("indigenous") || "prefer-not") + '</select>' +
-        '<span class="hint">Used only for the Non-Insured Health Benefits program, which applies to eligible First Nations and Inuit people.</span>' +
-      '</label>' +
+      ethnicityFields() +
       '<label class="field"><span>Gender (optional)</span>' +
         '<select name="gender" id="genderSelect">' + opts({
           "prefer-not": "Prefer not to say",
@@ -429,15 +429,45 @@
         }, val("gender") || "prefer-not") + '</select>' +
         '<span class="hint">Used only to list programs that target women or men. If you choose Prefer not to say or I will not provide this, those targeted programs are left out — you can still see a short note about them. Other programs are not affected.</span>' +
       '</label>' +
-      genderFollowups(val("gender") || "prefer-not") +
-      '<label class="field"><span>Ethnicity (optional)</span>' +
-        '<select name="ethnicity">' + opts({
-          "prefer-not": "Prefer not to say",
-          "not-listed": "I will not provide this",
-          other: "Other or I would rather describe this later"
-        }, val("ethnicity") || "prefer-not") + '</select>' +
-        '<span class="hint">Not used for matching in this catalog. Kept optional for a later version if a verified program actually requires it.</span>' +
-      '</label>'
+      identityFollowups()
+    );
+  }
+
+  function ethnicityChoices() {
+    return [
+      ["prefer-not", "Prefer not to say"],
+      ["white", "White / Caucasian"],
+      ["black", "Black"],
+      ["latin-american", "Hispanic / Latin American"],
+      ["south-asian", "South Asian"],
+      ["east-asian", "East Asian"],
+      ["southeast-asian", "Southeast Asian (including Filipino)"],
+      ["arab-west-asian", "Arab / West Asian"],
+      ["first-nations", "First Nations"],
+      ["metis", "Métis"],
+      ["inuit", "Inuit"],
+      ["other", "Other"]
+    ];
+  }
+
+  function selectedEthnicity() {
+    var list = state.profile.ethnicity;
+    if (!Array.isArray(list) || !list.length) return ["prefer-not"];
+    return list;
+  }
+
+  function ethnicityFields() {
+    var cur = selectedEthnicity();
+    var boxes = ethnicityChoices().map(function (pair) {
+      var checked = cur.indexOf(pair[0]) >= 0 ? " checked" : "";
+      return '<label class="choice"><input type="checkbox" name="ethnicity" value="' + pair[0] + '"' + checked + '><span>' + esc(pair[1]) + '</span></label>';
+    }).join("");
+    return (
+      '<fieldset class="field" id="ethnicityField">' +
+        '<legend>Background or ethnicity (optional)</legend>' +
+        '<p class="hint">Optional. Used only to find official programs you may qualify for. You can pick more than one, or Prefer not to say.</p>' +
+        boxes +
+      '</fieldset>'
     );
   }
 
@@ -688,6 +718,7 @@
           '<button class="btn secondary" type="button" data-go="already">Change what I already receive</button>' +
           '<button class="btn secondary" type="button" data-go="intake">Edit answers</button>' +
         '</div>' +
+        onboardingCta() +
       '</section>'
     );
   }
@@ -721,7 +752,41 @@
         '<div class="actions"><button class="btn secondary" type="button" data-open-packet="' + esc(a.id) + '">Open packet</button></div>' +
       '</article>';
     }).join("");
-    return '<h1>Progress tracker</h1>' + cards;
+    return '<h1>Progress tracker</h1>' + cards + onboardingCta();
+  }
+
+  function hasClosedLead() {
+    if (state.leadClosed) return true;
+    return (state.applications || []).some(function (a) {
+      return a.status === "approved" || a.status === "signed" || a.signed === true;
+    });
+  }
+
+  function onboardingCta() {
+    if (hasClosedLead() || state.onboardingStarted) {
+      var label = state.idMeta && state.idMeta.length ? "Continue onboarding (ID)" : "Start onboarding";
+      return '<div class="actions"><button class="btn" type="button" id="btnStartOnboarding" data-go="onboarding">' + label + '</button></div>';
+    }
+    return '<div class="actions"><button class="btn secondary" type="button" id="btnCloseLead">Close lead and start onboarding</button></div>';
+  }
+
+  function viewOnboarding() {
+    if (!hasClosedLead() && !state.onboardingStarted) {
+      return '<section class="panel" id="onboardingGate">' +
+        '<h1>Onboarding</h1>' +
+        '<p>Government ID is collected during onboarding, after a lead is closed or marked signed.</p>' +
+        '<div class="actions"><button class="btn secondary" type="button" data-go="results">Back to results</button></div>' +
+      '</section>';
+    }
+    state.onboardingStarted = true;
+    return '<section class="panel" id="onboardingPanel">' +
+      '<p class="fine">Onboarding — after the lead is closed or signed.</p>' +
+      stepId() +
+      '<div class="actions">' +
+        '<button class="btn" type="button" data-go="tracker">Done</button>' +
+        '<button class="btn secondary" type="button" data-go="results">Back to results</button>' +
+      '</div>' +
+    '</section>';
   }
 
   function viewPacket() {
@@ -842,9 +907,14 @@
 
   function readForm(form) {
     var p = state.profile;
+    var eth = [];
     $$("input, select, textarea", form).forEach(function (el) {
       var n = el.name;
       if (!n) return;
+      if (n === "ethnicity") {
+        if (el.checked) eth.push(el.value);
+        return;
+      }
       if (el.type === "checkbox") {
         if (n.indexOf("childDtc") === 0) return;
         p[n] = el.checked;
@@ -856,6 +926,15 @@
         p[n] = el.value;
       }
     });
+    if (form.querySelector("#ethnicityField")) {
+      if (!eth.length || eth.indexOf("prefer-not") >= 0) p.ethnicity = ["prefer-not"];
+      else p.ethnicity = eth;
+      if (p.ethnicity.indexOf("first-nations") >= 0) p.indigenous = "first-nations";
+      else if (p.ethnicity.indexOf("inuit") >= 0) p.indigenous = "inuit";
+      else if (p.ethnicity.indexOf("metis") >= 0) p.indigenous = "metis";
+      else if (p.ethnicity.indexOf("prefer-not") >= 0) p.indigenous = "prefer-not";
+      else p.indigenous = "no";
+    }
     var kids = [];
     $$("[data-child]", form).forEach(function (row) {
       var i = row.getAttribute("data-child");
@@ -881,7 +960,7 @@
       form.addEventListener("submit", function (e) {
         e.preventDefault();
         readForm(form);
-        if (state.viewed === "intake" && state.intakeStep === 5) {
+        if (state.viewed === "intake" && state.intakeStep === 4) {
           save();
           state.selectedIds = [];
           state.alreadyConfirmed = false;
@@ -895,7 +974,7 @@
           }
           return;
         }
-        state.intakeStep = Math.min(5, (state.intakeStep || 1) + 1);
+        state.intakeStep = Math.min(4, (state.intakeStep || 1) + 1);
         save();
         render();
       });
@@ -953,6 +1032,26 @@
       if (form) readForm(form);
       save();
       render();
+    });
+    $$('#ethnicityField input[name="ethnicity"]').forEach(function (cb) {
+      cb.addEventListener("change", function () {
+        var boxes = $$('#ethnicityField input[name="ethnicity"]');
+        if (cb.value === "prefer-not" && cb.checked) {
+          boxes.forEach(function (b) { if (b !== cb) b.checked = false; });
+        } else if (cb.checked) {
+          boxes.forEach(function (b) { if (b.value === "prefer-not") b.checked = false; });
+        }
+        if (form) readForm(form);
+        save();
+        render();
+      });
+    });
+    var closeLead = $("#btnCloseLead");
+    if (closeLead) closeLead.addEventListener("click", function () {
+      state.leadClosed = true;
+      state.onboardingStarted = true;
+      save();
+      setView("onboarding");
     });
     $$("[data-already]").forEach(function (b) {
       b.addEventListener("click", function () {

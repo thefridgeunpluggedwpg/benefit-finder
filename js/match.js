@@ -47,6 +47,32 @@ BF.yearsInCanada = function (p) {
   return isFinite(y) ? y : 0;
 };
 
+BF.ethnicityList = function (p) {
+  var raw = p && p.ethnicity;
+  if (Array.isArray(raw)) return raw.slice();
+  if (raw) return [raw];
+  return ["prefer-not"];
+};
+
+BF.hasEthnicity = function (p, id) {
+  var list = BF.ethnicityList(p);
+  if (list.indexOf("prefer-not") >= 0 || list.indexOf("not-listed") >= 0) return false;
+  return list.indexOf(id) >= 0;
+};
+
+BF.indigenousId = function (p) {
+  if (p && p.indigenous && p.indigenous !== "prefer-not" && p.indigenous !== "no" && p.indigenous !== "yes") return p.indigenous;
+  if (BF.hasEthnicity(p, "first-nations")) return "first-nations";
+  if (BF.hasEthnicity(p, "metis")) return "metis";
+  if (BF.hasEthnicity(p, "inuit")) return "inuit";
+  return (p && p.indigenous) || "prefer-not";
+};
+
+BF.isIndigenous = function (p) {
+  var id = BF.indigenousId(p);
+  return id === "first-nations" || id === "metis" || id === "inuit";
+};
+
 function money(n) {
   return Math.round(Number(n) * 100) / 100;
 }
@@ -334,7 +360,8 @@ BF.estimateProgram = function (program, profile) {
   }
 
   if (id === "nihb") {
-    if (p.indigenous !== "first-nations" && p.indigenous !== "inuit") {
+    var ind = BF.indigenousId(p);
+    if (ind !== "first-nations" && ind !== "inuit") {
       return skip("This program is for eligible First Nations and Inuit people. It is only listed if you choose that identity. The question is optional.");
     }
     return varies({ note: "This is health-benefits coverage, not a cash payment. Confirm eligibility on the official Non-Insured Health Benefits page." });
@@ -376,6 +403,27 @@ BF.estimateProgram = function (program, profile) {
     return varies({ note: eiNote + " A personal dollar estimate is not shown without working income. The official weekly maximum times 15 weeks would be $10,935, and only applies at the cap." });
   }
 
+  if (id === "bep-loan-fund") {
+    if (!BF.hasEthnicity(p, "black")) return skip("The Black Entrepreneurship Loan Fund is for Black entrepreneurs and majority Black-owned businesses. It is only listed if you choose Black.");
+    if (age < 18) return skip("Official eligibility requires you to be at least 18.");
+    if (!p.businessOwner) return skip("Listed when you own a business or are starting one.");
+    return maximum(250000, { excludeFromTotal: true, note: "Official materials describe loans of up to $250,000, delivered by FACE in partnership with BDC. The former microloan pilot ($10,000–$25,000) ended 31 March 2025. This is a loan, not a grant, so it is not included in the dollar total." });
+  }
+
+  if (id === "ircc-settlement") {
+    if (!p.newcomer && p.residency !== "pr" && p.residency !== "protected" && p.residency !== "temporary") {
+      return skip("IRCC-funded settlement services are for eligible newcomers (permanent residents, protected persons, and certain temporary residents). Canadian citizens are not eligible.");
+    }
+    if (p.residency === "citizen") return skip("Canadian citizens are not eligible for IRCC-funded settlement services.");
+    return varies({ note: "These are free support services (language training, employment help, and community connections), not a cash payment. Starting 1 April 2026, economic-class permanent residents generally have a time-limited window. Use the official IRCC service finder." });
+  }
+
+  if (id === "psssp") {
+    if (BF.indigenousId(p) !== "first-nations") return skip("The Post-Secondary Student Support Program is for eligible First Nations students. Inuit and Métis students should ask about the Inuit and Métis Nation Post-Secondary Education Strategies.");
+    if (!p.student) return skip("Listed when you are a student in an eligible post-secondary program.");
+    return varies({ note: "Amounts are set by your First Nation or designated education organization, so no dollar estimate is shown. Contact that organization to apply." });
+  }
+
   return skip("No matching rule is defined for this program.");
 };
 
@@ -390,8 +438,10 @@ BF.programType = function (program) {
   if (program && program.type) return program.type;
   var id = program && program.id;
   if (["hatc", "ratc", "seniors-school-tax-rebate", "dtc"].indexOf(id) >= 0) return "tax credit";
-  if (["clb", "cesg", "cdsg", "canada-student-grant"].indexOf(id) >= 0) return "grant";
+  if (["clb", "cesg", "cdsg", "canada-student-grant", "psssp"].indexOf(id) >= 0) return "grant";
   if (["cdcp", "nihb"].indexOf(id) >= 0) return "coverage";
+  if (id === "bep-loan-fund") return "loan";
+  if (id === "ircc-settlement") return "support service";
   return "benefit";
 };
 

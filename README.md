@@ -4,7 +4,7 @@ A prototype web app for a Manitoba financial-planner client. It helps one person
 
 **Live (when published):** https://thefridgeunpluggedwpg.github.io/benefit-finder/
 
-Version **1.2.0**. The product name lives in one place: `js/config.js` (`BF.APP_NAME`).
+Version **1.2.1**. The product name lives in one place: `js/config.js` (`BF.APP_NAME`).
 
 This is a **prototype — demo build**. The badge is visible in the app. It does **not** submit applications to the CRA, Service Canada, or the Government of Manitoba. There is no public API that would let an app do that on someone’s behalf.
 

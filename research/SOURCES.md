@@ -55,3 +55,11 @@ Amounts and rules in Benefit Finder come from these pages. If a figure could not
 - 2025 EI Premium Rates & Maximums ($65,700 at 1.64%, max $1,077.48): https://www.canada.ca/en/revenue-agency/services/tax/businesses/topics/payroll/payroll-deductions-contributions/employment-insurance-ei/ei-premium-rates-maximums.html
 - 2025 Canada Workers Benefit (Schedule 6: $1,633 single, $2,813 family, $843 disability supplement): https://www.canada.ca/en/revenue-agency/services/tax/individuals/topics/about-your-tax-return/tax-return/completing-a-tax-return/deductions-credits-expenses/line-45300-canada-workers-benefit-cwb/how-much-you-can-get.html
 - 2025 Manitoba Personal Income Taxes & Credits: https://www.gov.mb.ca/finance/personal/ptaxes.html and https://www.gov.mb.ca/finance/personal/pcredits.html
+
+## Identity-targeted programs (added 25 November 2026)
+
+- Black Entrepreneurship Loan Fund (up to $250,000; FACE + BDC; microloan pilot ended 31 March 2025): https://ised-isde.canada.ca/site/ised/en/programs-and-initiatives/black-entrepreneurship-program/black-entrepreneurship-loan-fund
+- Black Entrepreneurship Loan Fund FAQ (self-identify as Black or >51% Black-Canadian ownership; 18+; Canadian citizen or PR): https://ised-isde.canada.ca/site/ised/en/programs-and-initiatives/black-entrepreneurship-program/black-entrepreneurship-loan-fund-frequently-asked-questions
+- IRCC newcomer settlement services eligibility (citizens are not eligible; economic-class PR time limit from 1 April 2026): https://www.canada.ca/en/immigration-refugees-citizenship/services/settle-canada/newcomer-services/eligibility.html
+- IRCC service finder: https://ircc.canada.ca/english/newcomers/services/index.asp
+- Post-Secondary Student Support Program (First Nations students): https://www.sac-isc.gc.ca/eng/1100100033682/1531933580211

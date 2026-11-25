@@ -1,4 +1,4 @@
-const CACHE = 'benefit-finder-v1.2.0';
+const CACHE = 'benefit-finder-v1.2.1';
 const FILES = [
   './',
   'index.html',

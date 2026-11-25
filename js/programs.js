@@ -389,6 +389,52 @@ BF.PROGRAMS = [
     summary: "Financial assistance for a person who is away from work because they are pregnant or have recently given birth. Official rules say maternity benefits are available to eligible people regardless of gender identity. They cannot be shared between parents. Quebec residents use the Québec Parental Insurance Plan instead.",
     checklist: ["Confirm you have about 600 insured hours in the last 52 weeks, or since your last claim if that period is shorter", "Apply as soon as you stop work (waiting more than four weeks can reduce benefits)", "Have your recent work history ready for the official Service Canada application"],
     dtcContingent: false
+  },
+  {
+    id: "bep-loan-fund",
+    name: "Black Entrepreneurship Loan Fund",
+    shortName: "Black Entrepreneurship Loan Fund",
+    jurisdiction: "federal",
+    route: "direct",
+    type: "loan",
+    officialUrl: "https://ised-isde.canada.ca/site/ised/en/programs-and-initiatives/black-entrepreneurship-program/black-entrepreneurship-loan-fund",
+    benefitYear: "Current — applications continue through FACE",
+    summary: "A federal loan, delivered by the Federation of African Canadian Economics (FACE) in partnership with BDC, for Black entrepreneurs and majority Black-owned businesses (more than 51% ownership). Official materials describe loans of up to $250,000. This is a loan that must be repaid, not a grant, so it is not included in the dollar total.",
+    checklist: ["Self-identify as Black, or confirm the business is more than 51% owned by Black Canadians", "Be a Canadian citizen or permanent resident, and at least 18", "Have a business plan, registration, and recent financial statements or start-up projections", "Apply through the official FACE loan portal listed on the ISED program page"],
+    dtcContingent: false,
+    excludeFromTotal: true,
+    usesIdentity: { ethnicity: ["black"] }
+  },
+  {
+    id: "ircc-settlement",
+    name: "IRCC-funded newcomer settlement services",
+    shortName: "Newcomer settlement services",
+    jurisdiction: "federal",
+    route: "direct",
+    type: "support service",
+    officialUrl: "https://www.canada.ca/en/immigration-refugees-citizenship/services/settle-canada/newcomer-services/eligibility.html",
+    howMuchUrl: "https://ircc.canada.ca/english/newcomers/services/index.asp",
+    benefitYear: "Current IRCC Settlement Program",
+    summary: "Free settlement services funded by Immigration, Refugees and Citizenship Canada, including language training, employment help, and community connections. These are support services, not a cash payment. Canadian citizens are not eligible. Starting 1 April 2026, economic-class permanent residents generally have a time-limited window to use the services.",
+    checklist: ["Confirm you are a permanent resident, a protected person, or otherwise eligible under official IRCC rules", "Use the official IRCC service finder to locate a nearby provider", "Bring immigration documents when you contact a provider"],
+    dtcContingent: false,
+    amountVariesAlways: true,
+    notCash: true
+  },
+  {
+    id: "psssp",
+    name: "Post-Secondary Student Support Program",
+    shortName: "PSSSP",
+    jurisdiction: "federal",
+    route: "direct",
+    type: "grant",
+    officialUrl: "https://www.sac-isc.gc.ca/eng/1100100033682/1531933580211",
+    benefitYear: "Current Indigenous Services Canada program",
+    summary: "Financial assistance from Indigenous Services Canada for eligible First Nations students enrolled in post-secondary programs, administered through First Nations or designated education organizations. Amounts vary, so this app does not invent a dollar estimate. Inuit and Métis students should ask about the Inuit and Métis Nation Post-Secondary Education Strategies instead.",
+    checklist: ["Confirm you are an eligible First Nations student", "Contact your First Nation or designated education organization", "Have proof of enrolment in an eligible post-secondary program"],
+    dtcContingent: false,
+    amountVariesAlways: true,
+    usesIdentity: { indigenous: ["first-nations"] }
   }
 ];
 

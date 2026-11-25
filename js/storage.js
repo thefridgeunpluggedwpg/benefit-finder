@@ -26,7 +26,7 @@ BF.emptyProfile = function () {
     newcomer: false,
     indigenous: "prefer-not",
     gender: "prefer-not",
-    ethnicity: "prefer-not",
+    ethnicity: ["prefer-not"],
     hasResp: false,
     receivesOas: false,
     receivesEia: false,
@@ -56,7 +56,9 @@ BF.defaultState = function () {
     },
     viewed: "home",
     alreadyReceiving: {},
-    alreadyConfirmed: false
+    alreadyConfirmed: false,
+    onboardingStarted: false,
+    leadClosed: false
   };
 };
 
@@ -84,6 +86,12 @@ BF.loadState = function () {
     if (!Array.isArray(out.selectedIds)) out.selectedIds = [];
     if (!out.alreadyReceiving || typeof out.alreadyReceiving !== "object") out.alreadyReceiving = {};
     if (typeof out.alreadyConfirmed !== "boolean") out.alreadyConfirmed = false;
+    if (typeof out.onboardingStarted !== "boolean") out.onboardingStarted = false;
+    if (typeof out.leadClosed !== "boolean") out.leadClosed = false;
+    if (!Array.isArray(out.profile.ethnicity)) {
+      var e = out.profile.ethnicity;
+      out.profile.ethnicity = e && e !== "prefer-not" && e !== "not-listed" ? [e] : ["prefer-not"];
+    }
     return out;
   } catch (err) {
     return BF.defaultState();
