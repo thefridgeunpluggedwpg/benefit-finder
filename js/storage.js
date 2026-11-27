@@ -13,6 +13,20 @@ BF.emptyProfile = function () {
     working: false,
     workingIncome: "",
     selfEmployed: false,
+    workType: "",
+    profession: "",
+    incomeEmployment: "",
+    incomeSelfEmployedGross: "",
+    incomeSelfEmployedNet: "",
+    incomeEiBenefits: "",
+    incomePension: "",
+    incomeInterest: "",
+    incomeDividendsEligible: "",
+    incomeDividendsOther: "",
+    incomeRentalNet: "",
+    incomeCapitalGains: "",
+    incomeOther: "",
+    writeoffAmounts: {},
     taxWithheld: "",
     rrspDeduction: "",
     spouseIncome: "",
@@ -78,6 +92,7 @@ BF.loadState = function () {
     var out = Object.assign(base, data);
     out.profile = Object.assign(BF.emptyProfile(), data.profile || {});
     if (!Array.isArray(out.profile.children)) out.profile.children = [];
+    if (!out.profile.writeoffAmounts || typeof out.profile.writeoffAmounts !== "object") out.profile.writeoffAmounts = {};
     out.settings = Object.assign(base.settings, data.settings || {});
     if (!out.referralCode) out.referralCode = BF.makeReferralCode();
     if (!Array.isArray(out.applications)) out.applications = [];

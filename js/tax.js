@@ -23,6 +23,20 @@
    - Manitoba 2025 non-refundable credits & Renters/Homeowners Affordability Tax Credits ($575 + $328 seniors; $1,500 HATC):
      https://www.gov.mb.ca/finance/personal/pcredits.html
      https://www.gov.mb.ca/finance/tao/hatc.html
+   - 2025 capital gains inclusion rate remains one-half (proposed increase deferred to 1 January 2026):
+     https://www.canada.ca/en/department-finance/news/2025/01/government-of-canada-announces-deferral-in-implementation-of-change-to-capital-gains-inclusion-rate.html
+     https://www.canada.ca/en/revenue-agency/services/tax/individuals/topics/about-your-tax-return/tax-return/completing-a-tax-return/personal-income/line-12700-capital-gains.html
+   - 2025 dividends if no information slip: eligible × 138%, other-than-eligible × 115% (lines 12000 / 12010):
+     https://www.canada.ca/en/revenue-agency/services/tax/individuals/topics/about-your-tax-return/tax-return/completing-a-tax-return/personal-income/line-12000-taxable-amount-dividends-eligible-other-than-eligible-taxable-canadian-corporations.html
+   - 2025 federal dividend tax credit (line 40425) from Federal Worksheet: 9.0301% of eligible taxable amount, 15.0198% of other-than-eligible taxable amount.
+   - 2025 Manitoba dividend tax credit (Worksheet MB428 line 61520): 8% of eligible taxable amount, 0.7835% of other-than-eligible taxable amount (5007-D E (25)).
+   - 2025 medical expense threshold $2,834 or 3% of net income:
+     https://www.canada.ca/en/revenue-agency/services/forms-publications/publications/rc4065/medical-expenses.html
+   - 2025 donation credit rates (14.5% / 29% / 33% federal; MB 10.8% / 17.4%):
+     https://www.canada.ca/en/revenue-agency/services/tax/individuals/topics/about-your-tax-return/tax-return/completing-a-tax-return/deductions-credits-expenses/line-34900-donations-gifts/how-much-claim.html
+   - 2025 RRSP dollar limit $32,490; FHSA annual contribution limit $8,000, lifetime $40,000.
+   - Digital news subscription tax credit ended after 2024 and is not used for 2025:
+     https://www.canada.ca/en/revenue-agency/services/tax/individuals/topics/about-your-tax-return/tax-return/completing-a-tax-return/deductions-credits-expenses/deductions-credits-expenses/digital-news-subscription.html
 */
 (function (root) {
   "use strict";
@@ -85,12 +99,91 @@
     return r2(15780 * (1 - (netIncome - 200000) / 200000));
   }
 
+
+  var INCOME_DETAIL_KEYS = [
+    "incomeEmployment", "incomeSelfEmployedGross", "incomeSelfEmployedNet",
+    "incomeEiBenefits", "incomePension", "incomeInterest",
+    "incomeDividendsEligible", "incomeDividendsOther", "incomeRentalNet",
+    "incomeCapitalGains", "incomeOther"
+  ];
+
+  root.BF.incomeBreakdown = function (p) {
+    p = p || {};
+    var used = INCOME_DETAIL_KEYS.some(function (k) { return hasVal(p[k]); });
+    var wo = p.writeoffAmounts || {};
+    var employment = num(p.incomeEmployment);
+    var seGross = num(p.incomeSelfEmployedGross);
+    var seNet = hasVal(p.incomeSelfEmployedNet) ? num(p.incomeSelfEmployedNet) : 0;
+    var seExp = num(wo.seExpenses);
+    if (!hasVal(p.incomeSelfEmployedNet) && seGross > 0) {
+      seNet = Math.max(0, r2(seGross - seExp));
+    }
+    var ei = num(p.incomeEiBenefits);
+    var pension = num(p.incomePension);
+    var interest = num(p.incomeInterest);
+    var divEligActual = num(p.incomeDividendsEligible);
+    var divOtherActual = num(p.incomeDividendsOther);
+    var divEligTaxable = r2(divEligActual * 1.38);
+    var divOtherTaxable = r2(divOtherActual * 1.15);
+    var rental = num(p.incomeRentalNet);
+    var capGains = num(p.incomeCapitalGains);
+    var taxableGains = r2(capGains * 0.5);
+    var other = num(p.incomeOther);
+    var taxable = r2(employment + seNet + ei + pension + interest + divEligTaxable + divOtherTaxable + rental + taxableGains + other);
+    var tipsAsWork = other > 0 && (p.workType === "employee" || p.workType === "both" || p.profession === "gig" || employment > 0);
+    var working = r2(employment + seNet + (tipsAsWork ? other : 0));
+    var hasEmployment = employment > 0 || p.workType === "employee" || p.workType === "both";
+    var hasSE = seNet > 0 || seGross > 0 || !!p.selfEmployed || p.workType === "self-employed" || p.workType === "both";
+    return {
+      usedDetailed: used,
+      employment: r2(employment),
+      seGross: r2(seGross),
+      seNet: r2(seNet),
+      seExpensesAppliedToGross: !hasVal(p.incomeSelfEmployedNet) && seGross > 0 && seExp > 0,
+      ei: r2(ei),
+      pension: r2(pension),
+      interest: r2(interest),
+      divEligActual: r2(divEligActual),
+      divOtherActual: r2(divOtherActual),
+      divEligTaxable: divEligTaxable,
+      divOtherTaxable: divOtherTaxable,
+      rental: r2(rental),
+      capitalGains: r2(capGains),
+      taxableCapitalGains: taxableGains,
+      other: r2(other),
+      taxableIncomeBeforeDeductions: taxable,
+      workingIncome: working,
+      hasEmployment: hasEmployment,
+      hasSE: hasSE
+    };
+  };
+
+  function woAmt(p, key) {
+    var wo = p.writeoffAmounts || {};
+    if (hasVal(wo[key])) return num(wo[key]);
+    if (key === "rrspDeduction" || key === "rrsp") return num(p.rrspDeduction);
+    return 0;
+  }
+
+  function tradesToolsDeduction(cost, tradesIncome) {
+    var a = Math.min(num(cost), num(tradesIncome));
+    return r2(Math.max(0, Math.min(1000, a - 1471)));
+  }
+
+  root.BF.tradesToolsDeduction = tradesToolsDeduction;
+
   root.BF.TAX_YEAR = 2025;
 
   root.BF.estimateTaxRefund = function (profile, opts) {
     var p = profile || {};
     opts = opts || {};
     var already = opts.alreadyReceiving || {};
+    function woGet(p2, key) {
+      var map = { rrspDeduction: "rrsp", rrsp: "rrsp", fhsaDeduction: "fhsa", fhsa: "fhsa" };
+      var id = map[key] || key;
+      if (already[id]) return 0;
+      return woAmt(p2, key);
+    }
     var province = p.province || "MB";
     var age = num(p.age);
     var couple = p.marital === "married" || p.marital === "common-law";
@@ -98,11 +191,17 @@
     var hasDtcSelf = p.disability === "has-dtc";
     var selfEmployed = !!p.selfEmployed;
 
+    var breakdown = root.BF.incomeBreakdown(p);
+    if (p.workType === "self-employed" || p.workType === "both") selfEmployed = true;
+    if (breakdown.hasSE && breakdown.usedDetailed) selfEmployed = true;
+
     var hhIncome = num(p.householdIncome);
     var workEntered = hasVal(p.workingIncome) ? num(p.workingIncome) : 0;
     var workInc = workEntered > 0 ? workEntered : (p.working ? hhIncome : 0);
     var hasSpouseIncome = couple && hasVal(p.spouseIncome);
     var spouseInc = hasSpouseIncome ? num(p.spouseIncome) : 0;
+    var employmentInc = workInc;
+    var seNetInc = selfEmployed ? workInc : 0;
 
     var assumptions = [];
     var grossIncome;
@@ -121,33 +220,87 @@
       grossIncome = Math.max(hhIncome, workInc);
     }
 
+    if (breakdown.usedDetailed) {
+      grossIncome = breakdown.taxableIncomeBeforeDeductions;
+      workInc = breakdown.workingIncome;
+      employmentInc = breakdown.employment + ((breakdown.other && (p.workType === "employee" || p.workType === "both" || p.profession === "gig" || breakdown.employment > 0)) ? breakdown.other : 0);
+      seNetInc = breakdown.seNet;
+      selfEmployed = breakdown.hasSE;
+      assumptions.push("Taxable income uses your 2025 income details: 50% of capital gains (line 12700) and the official dividend gross-up (eligible × 138%, other-than-eligible × 115%).");
+      if (hhIncome > 0) {
+        assumptions.push("Adjusted family net income still uses the household total you entered, for benefits that use family income.");
+      }
+    }
+
     var familyNetGross = hhIncome > 0 ? hhIncome : (grossIncome + spouseInc);
-    var rrsp = num(p.rrspDeduction);
+    var rrsp = Math.min(32490, woGet(p, "rrspDeduction"));
+    var fhsa = Math.min(8000, woGet(p, "fhsaDeduction") || woGet(p, "fhsa"));
 
-    // 2025 CPP, CPP2, and EI on working income
-    var cpp1Contrib = Math.max(0, Math.min(workInc, 71300) - 3500);
-    var cpp2Contrib = Math.max(0, Math.min(workInc, 81200) - 71300);
-
+    // 2025 CPP, CPP2, and EI
     var baseCppCredit = 0;
     var cppDeduction = 0;
     var selfEmployedCppPayable = 0;
     var eiPremiums = 0;
-
-    if (workInc > 0) {
-      if (selfEmployed) {
-        var seBaseHalf = r2(cpp1Contrib * 0.0495);
-        var seEnh = r2(cpp1Contrib * 0.02 + cpp2Contrib * 0.08);
-        baseCppCredit = seBaseHalf;
-        cppDeduction = r2(seBaseHalf + seEnh);
-        selfEmployedCppPayable = r2(cpp1Contrib * 0.119 + cpp2Contrib * 0.08);
-      } else {
-        baseCppCredit = r2(cpp1Contrib * 0.0495);
-        cppDeduction = r2(cpp1Contrib * 0.01 + cpp2Contrib * 0.04);
-        eiPremiums = r2(Math.min(workInc, 65700) * 0.0164);
-      }
+    var empForCpp = breakdown.usedDetailed ? employmentInc : (selfEmployed ? 0 : workInc);
+    var seForCpp = breakdown.usedDetailed ? seNetInc : (selfEmployed ? workInc : 0);
+    if (!breakdown.usedDetailed) {
+      if (selfEmployed) { seForCpp = workInc; empForCpp = 0; }
+      else { empForCpp = workInc; seForCpp = 0; }
     }
 
-    var totalDeductions = r2(rrsp + cppDeduction);
+    function cppSlices(pensionable) {
+      var c1 = Math.max(0, Math.min(pensionable, 71300) - 3500);
+      var c2 = Math.max(0, Math.min(pensionable, 81200) - 71300);
+      return { c1: c1, c2: c2 };
+    }
+
+    if (empForCpp > 0 && seForCpp > 0) {
+      var empS = cppSlices(empForCpp);
+      baseCppCredit = r2(empS.c1 * 0.0495);
+      cppDeduction = r2(empS.c1 * 0.01 + empS.c2 * 0.04);
+      eiPremiums = r2(Math.min(empForCpp, 65700) * 0.0164);
+      var sePensionable = Math.max(0, Math.min(seForCpp, Math.max(0, 81200 - empForCpp)));
+      var seOnYmpe = Math.max(0, Math.min(sePensionable, Math.max(0, 71300 - empForCpp)));
+      var seC1 = empForCpp >= 71300 ? 0 : Math.max(0, seOnYmpe - Math.max(0, 3500 - empForCpp));
+      if (empForCpp >= 3500) seC1 = Math.max(0, Math.min(seForCpp, Math.max(0, 71300 - empForCpp)));
+      var seC2 = Math.max(0, Math.min(empForCpp + seForCpp, 81200) - Math.max(empForCpp, 71300));
+      baseCppCredit = r2(baseCppCredit + seC1 * 0.0495);
+      cppDeduction = r2(cppDeduction + seC1 * 0.0495 + seC1 * 0.02 + seC2 * 0.08);
+      selfEmployedCppPayable = r2(seC1 * 0.119 + seC2 * 0.08);
+    } else if (seForCpp > 0) {
+      var seS = cppSlices(seForCpp);
+      var seBaseHalf = r2(seS.c1 * 0.0495);
+      var seEnh = r2(seS.c1 * 0.02 + seS.c2 * 0.08);
+      baseCppCredit = seBaseHalf;
+      cppDeduction = r2(seBaseHalf + seEnh);
+      selfEmployedCppPayable = r2(seS.c1 * 0.119 + seS.c2 * 0.08);
+    } else if (empForCpp > 0) {
+      var eS = cppSlices(empForCpp);
+      baseCppCredit = r2(eS.c1 * 0.0495);
+      cppDeduction = r2(eS.c1 * 0.01 + eS.c2 * 0.04);
+      eiPremiums = r2(Math.min(empForCpp, 65700) * 0.0164);
+    }
+
+    var tradesIncome = breakdown.usedDetailed ? breakdown.employment : (selfEmployed ? 0 : workInc);
+    var toolsCost = woGet(p, "tradesTools");
+    var toolsDed = toolsCost > 0 ? tradesToolsDeduction(toolsCost, tradesIncome) : 0;
+    var lmd = woGet(p, "labourMobility");
+    if (lmd > 0) lmd = r2(Math.min(4000, lmd, tradesIncome * 0.5 || lmd));
+    var unionDues = woGet(p, "unionDues");
+    var childCare = woGet(p, "childCare");
+    var moving = woGet(p, "moving");
+    var t777 = woGet(p, "t777");
+    var homeOffice = woGet(p, "homeOffice");
+    var vehicle = woGet(p, "vehicle");
+    var apprenticeTools = woGet(p, "apprenticeTools");
+    var northern = woGet(p, "northern");
+    var seExpDed = 0;
+    if (woGet(p, "seExpenses") > 0 && !breakdown.seExpensesAppliedToGross) {
+      if (!hasVal(p.incomeSelfEmployedNet)) seExpDed = woGet(p, "seExpenses");
+    }
+
+    var extraDeductions = r2(fhsa + unionDues + childCare + moving + toolsDed + lmd + t777 + homeOffice + vehicle + apprenticeTools + northern + seExpDed);
+    var totalDeductions = r2(rrsp + cppDeduction + extraDeductions);
     var netIncome = Math.max(0, r2(grossIncome - totalDeductions));
     var taxableIncome = netIncome;
     var adjFamilyNet = Math.max(0, r2(familyNetGross - totalDeductions));
@@ -158,7 +311,9 @@
     var fedAgeAmt = (age >= 65 && netIncome < 105709) ? Math.max(0, r2(9028 - 0.15 * Math.max(0, netIncome - 45522))) : 0;
     var fedSpouseAmt = (couple && hasSpouseIncome && spouseInc < fedBpa) ? r2(fedBpa - spouseInc) : 0;
     var fedDependantAmt = (!couple && kids.under18 > 0) ? fedBpa : 0;
-    var fedCea = (!selfEmployed && workInc > 0) ? Math.min(1471, workInc) : 0;
+    var ceaBase = breakdown.usedDetailed ? employmentInc : workInc;
+    var fedCea = (ceaBase > 0 && !(selfEmployed && !breakdown.hasEmployment && breakdown.usedDetailed) && !(selfEmployed && !breakdown.usedDetailed)) ? Math.min(1471, ceaBase) : 0;
+    if (breakdown.usedDetailed && breakdown.hasEmployment) fedCea = Math.min(1471, employmentInc);
     var fedDtcAmt = hasDtcSelf ? 10138 : 0;
 
     var fedCreditBase = r2(fedBpa + fedAgeAmt + fedSpouseAmt + fedDependantAmt + baseCppCredit + eiPremiums + fedCea + fedDtcAmt);
@@ -169,6 +324,7 @@
     var isMb = province === "MB";
     var mbGross = isMb ? calcProgressive(taxableIncome, MB_BRACKETS_2025) : { tax: 0, marginalRate: 0 };
     var mbCredits = 0;
+    var mbCreditBase = 0;
     var manitobaTax = 0;
     if (isMb) {
       var mbBpa = mbBasicPersonal2025(netIncome);
@@ -176,11 +332,53 @@
       var mbSpouseAmt = (couple && hasSpouseIncome && spouseInc < 9134) ? r2(9134 - spouseInc) : 0;
       var mbDependantAmt = (!couple && kids.under18 > 0) ? 9134 : 0;
       var mbDtcAmt = hasDtcSelf ? 6180 : 0;
-      var mbCreditBase = r2(mbBpa + mbAgeAmt + mbSpouseAmt + mbDependantAmt + baseCppCredit + eiPremiums + mbDtcAmt);
+      mbCreditBase = r2(mbBpa + mbAgeAmt + mbSpouseAmt + mbDependantAmt + baseCppCredit + eiPremiums + mbDtcAmt);
       mbCredits = r2(mbCreditBase * 0.108);
       manitobaTax = Math.max(0, r2(mbGross.tax - mbCredits));
     } else {
       assumptions.push("Provincial income tax is calculated for Manitoba only in this build. Federal tax and refundable credits are still estimated.");
+    }
+
+    // Write-off credits (tuition, medical, donations, volunteer firefighter, MB items)
+    var tuition = woGet(p, "tuition");
+    var volunteerAmt = woGet(p, "volunteerFirefighter");
+    if (volunteerAmt > 0) volunteerAmt = Math.min(6000, volunteerAmt);
+    fedCreditBase = r2(fedCreditBase + tuition + volunteerAmt);
+    fedCredits = r2(fedCreditBase * 0.145);
+    if (isMb) {
+      mbCreditBase = r2((typeof mbCreditBase === "number" ? mbCreditBase : 0) + tuition + volunteerAmt);
+      mbCredits = r2(mbCreditBase * 0.108);
+    }
+
+    var fedDivCredit = r2(breakdown.divEligTaxable * 0.090301 + breakdown.divOtherTaxable * 0.150198);
+    var mbDivCredit = isMb ? r2(breakdown.divEligTaxable * 0.08 + breakdown.divOtherTaxable * 0.007835) : 0;
+    var medicalExp = woGet(p, "medical");
+    var medicalBase = medicalExp > 0 ? Math.max(0, r2(medicalExp - Math.min(2834, 0.03 * netIncome))) : 0;
+    var fedMedCredit = r2(medicalBase * 0.145);
+    var mbMedCredit = isMb ? r2(medicalBase * 0.108) : 0;
+    var donations = Math.min(woGet(p, "donations"), r2(0.75 * netIncome));
+    var donFirst = Math.min(200, donations);
+    var donRest = Math.max(0, donations - donFirst);
+    var donTop = 0;
+    if (taxableIncome > 253414) {
+      donTop = Math.min(donRest, r2(taxableIncome - 253414));
+      donRest = r2(donRest - donTop);
+    }
+    var fedDonCredit = r2(donFirst * 0.145 + donRest * 0.29 + donTop * 0.33);
+    var mbDonCredit = isMb ? r2(donFirst * 0.108 + (donations - donFirst) * 0.174) : 0;
+    var mbFit = isMb ? Math.min(500, woGet(p, "mbFitness")) : 0;
+    var mbFitCredit = r2(mbFit * 0.108);
+    var mbLsvccIn = woGet(p, "mbLabourSponsored");
+    var mbLsvccCredit = 0;
+    if (isMb && mbLsvccIn > 0) {
+      mbLsvccCredit = mbLsvccIn <= 1800 ? r2(mbLsvccIn) : r2(Math.min(1800, mbLsvccIn * 0.15));
+    }
+
+    fedCredits = r2(fedCredits + fedDivCredit + fedMedCredit + fedDonCredit);
+    federalTax = Math.max(0, r2(fedGross.tax - fedCredits));
+    if (isMb) {
+      mbCredits = r2(mbCredits + mbDivCredit + mbMedCredit + mbDonCredit + mbFitCredit + mbLsvccCredit);
+      manitobaTax = Math.max(0, r2(mbGross.tax - mbCredits));
     }
 
     // Refundable tax credits claimed on the 2025 return (respecting permanent alreadyReceiving exclusion!)
@@ -231,7 +429,26 @@
       assumptions.push("Manitoba Homeowners Affordability Tax Credit (up to $1,500 for 2025) is usually applied on your property tax bill; if not, it can be claimed on Form MB479 with your school tax amount.");
     }
 
-    var totalRefundableCredits = r2(cwbAmount + cwbSuppAmount + mbRatcAmount);
+    var educatorExp = woGet(p, "educatorSupplies");
+    var educatorCredit = 0;
+    if (!already["educatorSupplies"] && educatorExp > 0) {
+      educatorCredit = r2(Math.min(1000, educatorExp) * 0.25);
+      if (educatorCredit > 0) refundableItems.push({ id: "educatorSupplies", label: "Eligible educator school supply tax credit (2025 lines 46800/46900)", amount: educatorCredit });
+    }
+    var ctcLimit = woGet(p, "ctcLimit");
+    var ctcCredit = 0;
+    if (!already["ctcLimit"] && ctcLimit > 0 && tuition > 0) {
+      ctcCredit = r2(Math.min(ctcLimit, tuition * 0.5));
+      if (ctcCredit > 0) refundableItems.push({ id: "ctcLimit", label: "Canada training credit (2025 line 45350)", amount: ctcCredit });
+    }
+    var mbCare = 0;
+    if (isMb && !already["mbCaregiver"] && woGet(p, "mbCaregiver") > 0) {
+      mbCare = r2(Math.min(1400, woGet(p, "mbCaregiver")));
+      if (mbCare > 0) refundableItems.push({ id: "mbCaregiver", label: "Manitoba Primary Caregiver Tax Credit (2025 MB479)", amount: mbCare });
+    }
+
+    var totalRefundableCredits = r2(cwbAmount + cwbSuppAmount + mbRatcAmount + educatorCredit + ctcCredit + mbCare);
+
     var totalTaxPayable = r2(federalTax + manitobaTax + selfEmployedCppPayable);
     var hasTaxWithheld = hasVal(p.taxWithheld);
     var taxWithheld = hasTaxWithheld ? num(p.taxWithheld) : 0;
@@ -269,7 +486,18 @@
       amountAbs: Math.abs(netBalance),
       marginalRatePercent: marginalRate,
       effectiveRatePercent: effectiveRate,
-      assumptions: assumptions
+      assumptions: assumptions,
+      breakdown: breakdown,
+      deductions: {
+        rrsp: r2(rrsp),
+        fhsa: r2(fhsa),
+        cpp: r2(cppDeduction),
+        tradesTools: toolsDed,
+        labourMobility: r2(lmd),
+        other: r2(extraDeductions - toolsDed - lmd - fhsa)
+      },
+      fedDivCredit: r2(fedDivCredit || 0),
+      mbDivCredit: r2(mbDivCredit || 0)
     };
   };
 })(typeof window !== "undefined" ? window : globalThis);

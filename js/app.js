@@ -322,7 +322,54 @@
     );
   }
 
+  function professionOptions(cur) {
+    return (BF.PROFESSIONS || []).map(function (x) {
+      return '<option value="' + esc(x.id) + '"' + (x.id === cur ? " selected" : "") + '>' + esc(x.label) + '</option>';
+    }).join("");
+  }
+
+  function professionLabel(id) {
+    var found = (BF.PROFESSIONS || []).filter(function (x) { return x.id === id; })[0];
+    return found ? found.label : id;
+  }
+
+  function workTypeLabel(id) {
+    return ({ employee: "Employee (T4)", "self-employed": "Self-employed / contractor", both: "Both employment and self-employment" })[id] || id;
+  }
+
+  function incomeDetailsFields() {
+
+    function moneyField(name, label, hint) {
+      return '<label class="field"><span>' + label + '</span>' +
+        '<input type="number" name="' + name + '" min="0" step="1" inputmode="decimal" value="' + esc(val(name)) + '">' +
+        (hint ? '<span class="hint">' + hint + '</span>' : "") +
+        '</label>';
+    }
+    return (
+      '<details class="income-details" id="incomeDetails">' +
+        '<summary>Optional 2025 income details (T-slips)</summary>' +
+        '<p class="fine">All fields are optional. If you fill any, the tax estimate uses these amounts instead of the household or working totals above (family benefits still use household income). Capital gains use the 50% inclusion rate. Dividends use the official gross-up and dividend tax credit.</p>' +
+        moneyField("incomeEmployment", "Employment income (T4)", "T4 box 14.") +
+        '<div class="grid-2">' +
+          moneyField("incomeSelfEmployedGross", "Self-employment gross", "Before expenses (Form T2125).") +
+          moneyField("incomeSelfEmployedNet", "Self-employment net", "After expenses. If you enter net, expense write-offs are not subtracted again.") +
+        '</div>' +
+        moneyField("incomeEiBenefits", "EI or CERB-type benefits", "T4E or similar taxable benefits.") +
+        moneyField("incomePension", "CPP, OAS, or pension income", "T4A(P), T4A(OAS), or T4A. The $2,000 pension income amount is not applied automatically because this field can include CPP and OAS.") +
+        moneyField("incomeInterest", "Interest and other investment income", "T5 interest and similar amounts, not dividends.") +
+        '<div class="grid-2">' +
+          moneyField("incomeDividendsEligible", "Eligible dividends (actual amount)", "Enter the actual dividends, not the taxable amount. The 138% gross-up is applied.") +
+          moneyField("incomeDividendsOther", "Other-than-eligible dividends (actual)", "Enter the actual dividends. The 115% gross-up is applied.") +
+        '</div>' +
+        moneyField("incomeRentalNet", "Net rental income", "Form T776 net amount.") +
+        moneyField("incomeCapitalGains", "Capital gains (actual gain)", "Enter the actual gain. Only 50% is taxable for 2025.") +
+        moneyField("incomeOther", "Tips and other income", "Tips, honoraria, or other taxable amounts not listed above.") +
+      '</details>'
+    );
+  }
+
   function stepHousehold() {
+
     var kids = (state.profile.children || []).map(function (c, i) {
       return '<div class="swipe-row" data-swipe-row="' + i + '">' +
         '<button class="swipe-delete" type="button" data-delete-child="' + i + '" aria-label="Delete child ' + (i + 1) + '">Delete</button>' +
@@ -344,6 +391,20 @@
         '<input type="number" name="workingIncome" min="0" step="1" inputmode="decimal" value="' + esc(val("workingIncome")) + '">' +
       '</label>' +
       '<label class="choice"><input type="checkbox" name="selfEmployed"' + (val("selfEmployed") ? " checked" : "") + '><span>My working income is self-employed (not on a T4)</span></label>' +
+      '<div class="grid-2">' +
+        '<label class="field"><span>Profession (optional)</span>' +
+          '<select name="profession" id="professionSelect">' + professionOptions(val("profession")) + '</select>' +
+        '</label>' +
+        '<label class="field"><span>Employee or self-employed (optional)</span>' +
+          '<select name="workType" id="workTypeSelect">' + opts({
+            "": "Prefer not to say",
+            employee: "Employee (T4)",
+            "self-employed": "Self-employed / contractor",
+            both: "Both employment and self-employment"
+          }, val("workType") || (val("selfEmployed") ? "self-employed" : "")) + '</select>' +
+        '</label>' +
+      '</div>' +
+      incomeDetailsFields() +
       '<div class="grid-2">' +
         '<label class="field"><span>Tax already deducted on T4s (Box 22, optional)</span>' +
           '<input type="number" name="taxWithheld" min="0" step="1" inputmode="decimal" value="' + esc(val("taxWithheld")) + '">' +
@@ -478,7 +539,9 @@
       '<h1>Review and referral</h1>' +
       '<p>' + esc(p.displayName || "No name given") + ' · age ' + esc(p.age || "—") + ' · ' + esc(p.province || "—") + '</p>' +
       '<p class="muted">Household income ' + (p.householdIncome === "" ? "not entered" : fmtMoney(num(p.householdIncome))) +
-        '. ' + kids + ' child' + (kids === 1 ? "" : "ren") + '. Housing: ' + esc(p.housing) + '.</p>' +
+        '. ' + kids + ' child' + (kids === 1 ? "" : "ren") + '. Housing: ' + esc(p.housing) +
+        (p.profession ? '. Profession: ' + esc(professionLabel(p.profession)) : "") +
+        (p.workType ? '. Work: ' + esc(workTypeLabel(p.workType)) : "") + '.</p>' +
       '<p class="muted">ID on this device: ' + (state.idMeta.length ? state.idMeta.length + " file(s)" : "none yet") + '.</p>' +
       '<label class="field"><span>If someone referred you, enter their referral code (optional)</span>' +
         '<input type="text" name="referralCodeEntered" id="referralCodeEntered" value="' + esc(state.referralCodeEntered || "") + '" maxlength="20" autocapitalize="characters">' +
@@ -574,7 +637,68 @@
     return new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD" }).format(n);
   }
 
+  function writeoffAmountValue(item) {
+    var wo = state.profile.writeoffAmounts || {};
+    var key = item.amountKey;
+    if (hasVal(wo[key])) return wo[key];
+    if (key === "rrspDeduction" && hasVal(state.profile.rrspDeduction)) return state.profile.rrspDeduction;
+    return "";
+  }
+
+  function hasVal(v) {
+    return v !== "" && v != null && isFinite(Number(v));
+  }
+
+  function writeoffAmountHint(item) {
+    if (item.id === "tradesTools") return "Enter the cost of eligible new tools. The estimate applies the official $1,000 limit and $1,471 threshold.";
+    if (item.id === "labourMobility") return "Enter eligible temporary relocation costs. The estimate caps this at $4,000 and 50% of construction employment income.";
+    if (item.id === "educatorSupplies") return "Enter eligible supplies you paid (up to $1,000). The refundable credit is 25%.";
+    if (item.id === "volunteerFirefighter") return "Enter 6000 if you completed at least 200 eligible hours. You cannot also claim the search and rescue amount.";
+    if (item.id === "ctcLimit") return "Enter the Canada training credit limit from your notice of assessment. The credit is the lesser of that limit and 50% of eligible tuition.";
+    if (item.id === "mbLabourSponsored") return "Enter the credit from your T2C (MAN.) slip, or the investment amount and the estimate will apply 15% up to $1,800.";
+    if (item.id === "mbCaregiver") return "Enter 1400 if you qualify as the primary caregiver.";
+    if (item.capNote) return item.capNote;
+    return "Optional. Enter an amount only if you have receipts or slips.";
+  }
+
+  function renderWriteoffsSection() {
+    if (typeof BF.writeoffsFor !== "function") return "";
+    var items = BF.writeoffsFor(state.profile, state.alreadyReceiving || {});
+    var hidden = (BF.WRITEOFFS || []).filter(function (w) { return !!(state.alreadyReceiving && state.alreadyReceiving[w.id]); });
+    var rows = items.map(function (w) {
+      var amt = writeoffAmountValue(w);
+      return '<article class="writeoff-row" data-writeoff-id="' + esc(w.id) + '">' +
+        '<div class="name">' + esc(w.title) + '</div>' +
+        '<p class="fine">' + esc(w.explanation) + '</p>' +
+        '<p class="fine writeoff-meta">' + esc(w.line) + (w.form ? " · " + esc(w.form) : "") + ' · ' + esc(w.kind === "refundable" ? "Refundable credit" : (w.kind === "credit" ? "Non-refundable credit" : "Deduction")) + '</p>' +
+        '<p class="fine">Who may claim: ' + esc(w.eligibility) + '</p>' +
+        '<p class="fine"><a href="' + esc(w.sourceUrl) + '" target="_blank" rel="noopener">Official source</a></p>' +
+        (w.amountKey ? (
+          '<label class="field"><span>Amount (optional)</span>' +
+            '<input type="number" min="0" step="1" inputmode="decimal" data-writeoff-amount="' + esc(w.amountKey) + '" data-writeoff-id="' + esc(w.id) + '" value="' + esc(amt) + '">' +
+            '<span class="hint">' + esc(writeoffAmountHint(w)) + '</span>' +
+          '</label>'
+        ) : "") +
+        '<label class="choice"><input type="checkbox" data-writeoff-already="' + esc(w.id) + '"><span>I already claim this</span></label>' +
+      '</article>';
+    }).join("");
+    var undo = "";
+    if (hidden.length) {
+      undo = '<p class="fine" id="writeoffAlreadyNote">' + hidden.length + ' write-off' + (hidden.length === 1 ? "" : "s") + ' you already claim ' + (hidden.length === 1 ? "is" : "are") + ' left out of this list and the tax estimate. ' +
+        '<button class="btn ghost" type="button" id="btnUndoWriteoffs">Undo a write-off I marked by mistake</button></p>';
+    }
+    return (
+      '<section class="panel" id="writeoffsPanel">' +
+        '<h2>Possible 2025 write-offs</h2>' +
+        '<p class="fine">A checklist tailored to your answers. These are possible deductions and credits, not advice. Enter an amount only if you have receipts or slips — the refund estimate updates. Items you mark as already claimed are left out of the list and the estimate.</p>' +
+        undo +
+        (rows || '<p class="muted">No tailored write-offs to show for these answers.</p>') +
+      '</section>'
+    );
+  }
+
   function renderTaxSection() {
+
     if (typeof BF.estimateTaxRefund !== "function") return "";
     var tax = BF.estimateTaxRefund(state.profile, { alreadyReceiving: state.alreadyReceiving || {} });
     var heroClass = "tax-payable";
@@ -628,10 +752,16 @@
         '<div class="table-wrap"><table class="tax-table"><tbody>' +
           '<tr><td>Individual gross income</td><td>' + esc(fmtMoneyCents(tax.grossIncome)) + '</td></tr>' +
           (tax.rrspDeduction > 0 ? '<tr><td>RRSP deduction</td><td>−' + esc(fmtMoneyCents(tax.rrspDeduction)) + '</td></tr>' : '') +
+          (tax.deductions && tax.deductions.fhsa > 0 ? '<tr><td>FHSA deduction</td><td>−' + esc(fmtMoneyCents(tax.deductions.fhsa)) + '</td></tr>' : '') +
           (tax.cppDeduction > 0 ? '<tr><td>CPP enhanced / self-employed deduction</td><td>−' + esc(fmtMoneyCents(tax.cppDeduction)) + '</td></tr>' : '') +
+          (tax.deductions && tax.deductions.tradesTools > 0 ? '<tr><td>Tradesperson’s tools deduction</td><td>−' + esc(fmtMoneyCents(tax.deductions.tradesTools)) + '</td></tr>' : '') +
+          (tax.deductions && tax.deductions.labourMobility > 0 ? '<tr><td>Labour mobility deduction</td><td>−' + esc(fmtMoneyCents(tax.deductions.labourMobility)) + '</td></tr>' : '') +
+          (tax.deductions && tax.deductions.other > 0 ? '<tr><td>Other deductions entered</td><td>−' + esc(fmtMoneyCents(tax.deductions.other)) + '</td></tr>' : '') +
           '<tr><td>Estimated taxable income</td><td>' + esc(fmtMoneyCents(tax.taxableIncome)) + '</td></tr>' +
           '<tr><td>Federal tax (2025 brackets minus 14.5% credits)</td><td>' + esc(fmtMoneyCents(tax.federalTax)) + '</td></tr>' +
           (tax.isManitoba ? '<tr><td>Manitoba tax (2025 brackets minus 10.8% credits)</td><td>' + esc(fmtMoneyCents(tax.manitobaTax)) + '</td></tr>' : '') +
+          (tax.fedDivCredit > 0 ? '<tr><td>Federal dividend tax credit</td><td>−' + esc(fmtMoneyCents(tax.fedDivCredit)) + '</td></tr>' : '') +
+          (tax.mbDivCredit > 0 ? '<tr><td>Manitoba dividend tax credit</td><td>−' + esc(fmtMoneyCents(tax.mbDivCredit)) + '</td></tr>' : '') +
           (tax.selfEmployedCppPayable > 0 ? '<tr><td>Self-employed CPP contributions on return</td><td>' + esc(fmtMoneyCents(tax.selfEmployedCppPayable)) + '</td></tr>' : '') +
           (creditRows ? creditRows : '') +
           (tax.hasTaxWithheld ? '<tr><td>Income tax already deducted (T4 Box 22)</td><td>−' + esc(fmtMoneyCents(tax.taxWithheld)) + '</td></tr>' : '') +
@@ -694,6 +824,7 @@
     }
     return (
       renderTaxSection() +
+      renderWriteoffsSection() +
       '<section class="panel" id="resultsPanel">' +
         '<p class="fine">Prototype — demo build. Estimates are approximate.</p>' +
         '<div class="total-block">' +
@@ -943,6 +1074,10 @@
       kids.push({ age: ageEl ? ageEl.value : "", hasDtc: !!(dtcEl && dtcEl.checked) });
     });
     if (form.querySelector("#kids")) p.children = kids;
+    if (form.querySelector('[name="workType"]')) {
+      if (p.workType === "self-employed" || p.workType === "both") p.selfEmployed = true;
+      else if (p.workType === "employee") p.selfEmployed = false;
+    }
   }
 
   function bindView() {
@@ -1007,6 +1142,39 @@
         }
         save();
       });
+    });
+    $$("[data-writeoff-amount]").forEach(function (el) {
+      el.addEventListener("change", function () {
+        var key = el.getAttribute("data-writeoff-amount");
+        state.profile.writeoffAmounts = state.profile.writeoffAmounts || {};
+        state.profile.writeoffAmounts[key] = el.value;
+        if (key === "rrspDeduction") state.profile.rrspDeduction = el.value;
+        save();
+        var y = window.scrollY;
+        render();
+        window.scrollTo(0, y);
+      });
+    });
+    $$("[data-writeoff-already]").forEach(function (el) {
+      el.addEventListener("change", function () {
+        if (!el.checked) return;
+        var id = el.getAttribute("data-writeoff-already");
+        state.alreadyReceiving = state.alreadyReceiving || {};
+        state.alreadyReceiving[id] = true;
+        save();
+        var y = window.scrollY;
+        render();
+        window.scrollTo(0, y);
+      });
+    });
+    var undoWo = $("#btnUndoWriteoffs");
+    if (undoWo) undoWo.addEventListener("click", function () {
+      var ids = (BF.WRITEOFFS || []).map(function (w) { return w.id; });
+      ids.forEach(function (id) {
+        if (state.alreadyReceiving && state.alreadyReceiving[id]) delete state.alreadyReceiving[id];
+      });
+      save();
+      render();
     });
     var approve = $("#btnApprove");
     if (approve) approve.addEventListener("click", approveSelected);

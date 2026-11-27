@@ -1,4 +1,4 @@
-"""Benefit Finder v1.2.1 end-to-end tests (Playwright + local Chrome).
+"""Benefit Finder v1.3.0 end-to-end tests (Playwright + local Chrome).
 Serve the app on 127.0.0.1:8940 and run:
   /workspace/.venv-pw/bin/python tools/e2e.py
 Exit code 1 if any test fails.
@@ -74,7 +74,7 @@ def main():
         check("fees: 3% applies to non-DTC amounts only ($451.20)", abs(fees.get("percentFee") - 451.20) < 0.02 and abs(fees.get("baseFound") - 15040) < 0.01, fees)
         check("fees: DTC amount is excluded and $100 cap is recorded", fees.get("dtcCapCad") == 100 and fees.get("dtcFound") == 3480, fees)
         check("catalog has at least 20 official programs", page.evaluate("BF.PROGRAMS.length") >= 20, page.evaluate("BF.PROGRAMS.length"))
-        check("version is 1.2.1", page.evaluate("BF.VERSION") == "1.2.1", page.evaluate("BF.VERSION"))
+        check("version is 1.3.0", page.evaluate("BF.VERSION") == "1.3.0", page.evaluate("BF.VERSION"))
 
         WOMEN_IDS = ["wes-loan-fund", "wes-business-support", "mb-women-trades", "mb-gbv-supports"]
 
@@ -124,6 +124,10 @@ def main():
         page.fill('input[name="householdIncome"]', "28000")
         page.check('input[name="working"]')
         page.fill('input[name="workingIncome"]', "28000")
+        check("profession and work type fields are on the household step", page.locator('select[name="profession"]').count() == 1 and page.locator('select[name="workType"]').count() == 1)
+        check("optional 2025 income details are present", page.locator("#incomeDetails").count() == 1 and page.locator('input[name="incomeEmployment"]').count() == 1 and page.locator('input[name="incomeCapitalGains"]').count() == 1)
+        page.select_option('select[name="profession"]', "office")
+        page.select_option('select[name="workType"]', "employee")
         page.select_option('select[name="housing"]', "rent")
         page.click("#btnAddChild")
         page.click("#btnAddChild")
@@ -426,6 +430,51 @@ def main():
           return { overflow, bodySel };
         }""")
         check("mobile viewport has no horizontal overflow and native user-select", mobile_ok["overflow"] is False and mobile_ok["bodySel"] == "none", mobile_ok)
+
+        # --- v1.3.0 profession, income details, write-offs ---
+        show_results_for({
+            "displayName": "Carpenter Client", "province": "MB", "age": 32, "marital": "single",
+            "householdIncome": 55000, "working": True, "profession": "carpenter", "workType": "employee",
+            "incomeEmployment": 55000, "rrspDeduction": 3000, "taxWithheld": 10500,
+            "housing": "own", "children": [], "writeoffAmounts": {"tradesTools": 2500}
+        })
+        wo = page.inner_text("#writeoffsPanel")
+        check("carpenter write-offs include trades tools and labour mobility", "Tradesperson" in wo and "Labour mobility" in wo, wo[:400])
+        check("carpenter tools amount updates refund to $2,788.74", "2,788.74" in page.inner_text("#taxRefundAmount"), page.inner_text("#taxRefundAmount"))
+        check("expired digital news credit is not listed", "digital news" not in wo.lower() and "digital news" not in page.inner_text("body").lower())
+        page.fill('[data-writeoff-amount="tradesTools"]', "0")
+        page.locator('[data-writeoff-amount="tradesTools"]').dispatch_event("change")
+        page.wait_for_function("""() => document.querySelector("#taxRefundAmount") && document.querySelector("#taxRefundAmount").innerText.includes("2,516.24")""")
+        check("clearing tools cost restores $2,516.24 refund", "2,516.24" in page.inner_text("#taxRefundAmount"), page.inner_text("#taxRefundAmount"))
+        page.fill('[data-writeoff-amount="tradesTools"]', "2500")
+        page.locator('[data-writeoff-amount="tradesTools"]').dispatch_event("change")
+        page.wait_for_function("""() => document.querySelector("#taxRefundAmount") && document.querySelector("#taxRefundAmount").innerText.includes("2,788.74")""")
+        page.evaluate("""() => {
+          const el = document.querySelector('[data-writeoff-already="tradesTools"]');
+          el.checked = true;
+          el.dispatchEvent(new Event("change", { bubbles: true }));
+        }""")
+        page.wait_for_selector("#writeoffAlreadyNote")
+        check("already-claim hides trades tools and restores $2,516.24 refund", page.locator('[data-writeoff-id="tradesTools"]').count() == 0 and "2,516.24" in page.inner_text("#taxRefundAmount"), page.inner_text("#taxRefundAmount"))
+
+        show_results_for({
+            "displayName": "Teacher Client", "province": "MB", "age": 40, "marital": "single",
+            "householdIncome": 55000, "working": True, "profession": "teacher", "workType": "employee",
+            "incomeEmployment": 55000, "housing": "own", "taxWithheld": 8000, "children": []
+        })
+        wo_t = page.inner_text("#writeoffsPanel")
+        check("teacher write-offs include educator school supply credit", "Eligible educator" in wo_t or "school supply" in wo_t.lower(), wo_t[:400])
+        check("teacher write-offs omit trades tools", "Tradesperson" not in wo_t, wo_t[:400])
+
+        show_results_for({
+            "displayName": "Contractor Client", "province": "MB", "age": 40, "marital": "single",
+            "householdIncome": 60000, "working": True, "profession": "contractor", "workType": "self-employed",
+            "selfEmployed": True, "incomeSelfEmployedGross": 80000, "incomeSelfEmployedNet": 60000,
+            "housing": "own", "taxWithheld": 0, "children": []
+        })
+        wo_c = page.inner_text("#writeoffsPanel")
+        check("self-employed write-offs include T2125 expenses", "T2125" in wo_c or "Self-employment" in wo_c or "self-employed" in wo_c.lower(), wo_c[:400])
+        check("self-employed write-offs omit trades tools", "Tradesperson" not in wo_c, wo_c[:400])
 
         check("no page errors", not errs, errs)
 
