@@ -126,8 +126,29 @@ BF.estimateProgram = function (program, profile) {
   var family = couple || kids.under18 > 0;
   var id = program.id;
 
-  if (program.jurisdiction === "manitoba" && !mb) {
-    return skip("This build lists Manitoba provincial programs only for people who live in Manitoba.");
+  var JURISDICTION_CODE = {
+    federal: null,
+    manitoba: "MB",
+    bc: "BC",
+    "british-columbia": "BC",
+    alberta: "AB",
+    ontario: "ON",
+    saskatchewan: "SK",
+    "nova-scotia": "NS",
+    "new-brunswick": "NB",
+    "newfoundland-and-labrador": "NL",
+    "prince-edward-island": "PE",
+    quebec: "QC",
+    yukon: "YT",
+    "northwest-territories": "NT",
+    nunavut: "NU"
+  };
+  if (program.jurisdiction && program.jurisdiction !== "federal") {
+    var need = JURISDICTION_CODE[program.jurisdiction] || String(program.jurisdiction).toUpperCase();
+    if (p.province !== need) {
+      var needName = (BF.provinceName && BF.provinceName(need)) || need;
+      return skip("This program is for residents of " + needName + ".");
+    }
   }
 
   if (id === "ccb") {
@@ -474,6 +495,24 @@ BF.estimateProgram = function (program, profile) {
     if (p.housing === "own") return skip("An FHSA is generally for qualifying first-time home buyers.");
     if (age < 18 || age > 71) return skip("You generally must be a resident of Canada and at least 18 to open an FHSA.");
     return varies({ note: "The official 2025 FHSA annual contribution limit is $8,000, with a $40,000 lifetime limit. Contributions may be deductible on line 20805. This is not a government cash payment, so it is not added to your total." });
+  }
+
+  if (id === "bc-renters-tax-credit") {
+    if (p.housing !== "rent") return skip("This credit is for people who rented an eligible home in B.C.");
+    if (age < 19 && !couple && kids.under18 < 1) return skip("You must be 19 or older, a parent, or living with a spouse or common-law partner.");
+    var rtc = Math.max(0, Math.round((400 - 0.02 * Math.max(0, income - 64764)) * 100) / 100);
+    if (rtc <= 0) return skip("At this income the official 2025 formula (up to $400, reduced by 2% of adjusted income over $64,764) would be zero at $84,764.");
+    return estimated(rtc, { note: "Official 2025 B.C. renter's tax credit: up to $400, reduced by 2% of adjusted income over $64,764, and zero at $84,764. Claimed on Form BC479. Amount of rent paid does not change the credit." });
+  }
+
+  if (id === "ab-child-family-benefit") {
+    if (kids.under18 < 1) return skip("This benefit is for families with a child under 18.");
+    var acfbMax = ({ 1: 1499 + 767, 2: 2248 + 1465, 3: 2997 + 1883 }[Math.min(kids.under18, 4)] || (3746 + 2021));
+    return varies({ note: "Official Alberta maximums for July 2025 to June 2026 are $1,499 base plus $767 working (1 child), up to $3,746 plus $2,021 (4 or more children). Your payment depends on family net income and working income, so no personal dollar estimate is shown. The CRA calculates it when you file. Combined maximum at this family size would be up to $" + acfbMax.toLocaleString("en-CA") + "." });
+  }
+
+  if (id === "on-trillium") {
+    return varies({ note: "The Ontario Trillium Benefit can include the Ontario sales tax credit, the Ontario energy and property tax credit, and the Northern Ontario energy credit. Amounts depend on income, family size, rent or property tax, and whether you live in Northern Ontario, so no dollar estimate is invented here. File your return and Form ON-BEN if it applies." });
   }
 
   return skip("No matching rule is defined for this program.");

@@ -1,4 +1,4 @@
-/* Real federal and Manitoba programs only. Amounts and rules are from official
+/* Real federal, Manitoba, and other provincial programs. Amounts and rules are from official
    sources listed on each record (canada.ca / gov.mb.ca / laws-lois), gathered
    21 Nov 2026. Matching and estimate math lives in match.js. */
 window.BF = window.BF || {};
@@ -551,6 +551,45 @@ BF.PROGRAMS = [
     benefitYear: "2025 tax year",
     summary: "A registered account that can give you a deduction for contributions (line 20805) and tax-free withdrawals for a first home. The official annual contribution limit is $8,000, with a $40,000 lifetime limit. This is not a cash benefit paid by the government.",
     checklist: ["Open an FHSA with a participating issuer if you are a qualifying first-time home buyer", "Contribute within your official room (up to $8,000 in 2025)", "Claim the deduction on line 20805 if you contributed"],
+    dtcContingent: false
+  },
+  {
+    id: "bc-renters-tax-credit",
+    name: "B.C. renter's tax credit",
+    shortName: "B.C. renter's tax credit",
+    jurisdiction: "bc",
+    type: "tax credit",
+    route: "accountant",
+    officialUrl: "https://www2.gov.bc.ca/gov/content/taxes/income-taxes/personal/credits/renters-tax-credit",
+    benefitYear: "2025 tax year",
+    summary: "A refundable B.C. credit of up to $400 for 2025 if you rented an eligible B.C. home for at least six months. You get the full $400 if adjusted income is $64,764 or less. The credit is reduced by 2% of adjusted income over $64,764 and is zero at $84,764. Claimed on Form BC479.",
+    checklist: ["Lived in B.C. on December 31 and rented an eligible unit in B.C. for at least six one-month periods", "Be 19 or older, a parent, or living with a spouse or common-law partner", "Claim the credit on Form BC479 when you file your 2025 tax return", "Keep rent addresses, months of tenancy, and landlord details"],
+    dtcContingent: false
+  },
+  {
+    id: "ab-child-family-benefit",
+    name: "Alberta Child and Family Benefit",
+    shortName: "Alberta Child and Family Benefit",
+    jurisdiction: "alberta",
+    type: "benefit",
+    route: "accountant",
+    officialUrl: "https://www.alberta.ca/alberta-child-and-family-benefit",
+    benefitYear: "July 2025 – June 2026",
+    summary: "A tax-free Alberta benefit for lower- and middle-income families with children under 18. It has a base amount and a working amount. For July 2025 to June 2026 the published maximums are $1,499 base plus $767 working (1 child), $2,248 plus $1,465 (2 children), $2,997 plus $1,883 (3 children), and $3,746 plus $2,021 (4 or more). The CRA calculates it when you file.",
+    checklist: ["Be a resident of Alberta and a parent of a child under 18", "File your tax return (and your spouse or common-law partner's, if you have one)", "Be eligible for the Canada Child Benefit, or apply for it if you have not"],
+    dtcContingent: false
+  },
+  {
+    id: "on-trillium",
+    name: "Ontario Trillium Benefit",
+    shortName: "Ontario Trillium Benefit",
+    jurisdiction: "ontario",
+    type: "benefit",
+    route: "accountant",
+    officialUrl: "https://www.canada.ca/en/revenue-agency/services/child-family-benefits/provincial-territorial-programs/province-ontario.html",
+    benefitYear: "Payments based on your tax return",
+    summary: "A tax-free Ontario payment that can include the Ontario sales tax credit, the Ontario energy and property tax credit, and the Northern Ontario energy credit. Amounts depend on income, family size, rent or property tax, and whether you live in Northern Ontario. The CRA calculates it from your return and Form ON-BEN.",
+    checklist: ["File your tax return as an Ontario resident", "Complete Form ON-BEN if you paid rent or property tax and want the energy and property tax credit", "Keep rent receipts or property-tax bills"],
     dtcContingent: false
   }
 ];

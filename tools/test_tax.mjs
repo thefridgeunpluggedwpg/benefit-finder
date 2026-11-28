@@ -9,6 +9,7 @@ vm.createContext(ctx);
 vm.runInContext(fs.readFileSync(new URL("../js/config.js", import.meta.url), "utf8"), ctx);
 vm.runInContext(fs.readFileSync(new URL("../js/programs.js", import.meta.url), "utf8"), ctx);
 vm.runInContext(fs.readFileSync(new URL("../js/match.js", import.meta.url), "utf8"), ctx);
+vm.runInContext(fs.readFileSync(new URL("../js/provinces.js", import.meta.url), "utf8"), ctx);
 vm.runInContext(fs.readFileSync(new URL("../js/tax.js", import.meta.url), "utf8"), ctx);
 
 const { BF } = ctx;
@@ -332,18 +333,21 @@ test("21. Entered RRSP room does not change the existing tax refund estimate", (
   assert.equal(withRoom.rrspDeduction, 3000);
 });
 
-test("22. BC employee gets a full federal estimate labelled federal-only, with no Manitoba tax", () => {
+test("22. BC employee gets federal plus B.C. provincial tax, not a federal-only label", () => {
   const res = BF.estimateTaxRefund({
     province: "BC", age: 35, marital: "single",
     householdIncome: 70000, working: true, workingIncome: 70000,
     housing: "own", children: [], taxWithheld: 15000
   });
-  assert.equal(res.federalOnly, true);
-  assert.equal(res.provincialIncluded, false);
+  assert.equal(res.federalOnly, false);
+  assert.equal(res.provincialIncluded, true);
   assert.equal(res.manitobaTax, 0);
   assert.equal(res.isManitoba, false);
+  assert.equal(res.provinceName, "British Columbia");
   assert.ok(res.federalTax > 0);
-  assert.ok(res.assumptions.some((a) => a.includes("Provincial tax not yet included for British Columbia") && a.includes("federal estimate shown")));
+  assert.ok(res.provincialTax > 0);
+  assert.ok(res.totalTaxPayable > res.federalTax);
+  assert.ok(!(res.assumptions || []).some((a) => a.includes("Provincial tax not yet included")));
 });
 
 test("23. MB estimate is still federal plus Manitoba, not federal-only", () => {
@@ -357,7 +361,7 @@ test("23. MB estimate is still federal plus Manitoba, not federal-only", () => {
   assert.ok(res.manitobaTax > 0);
 });
 
-test("24. BC RRSP helper uses federal brackets and notes that provincial savings would be extra", () => {
+test("24. BC RRSP helper uses combined federal and B.C. brackets", () => {
   const h = BF.rrspHelper({
     province: "BC", age: 35, marital: "single",
     householdIncome: 70000, working: true, workingIncome: 70000,
@@ -367,10 +371,14 @@ test("24. BC RRSP helper uses federal brackets and notes that provincial savings
   assert.equal(h.sweetSpot, 11960);
   assert.equal(h.sweetSpotThreshold, 57375);
   assert.equal(h.isManitoba, false);
+  assert.ok(BF.combinedBracketThresholds("BC").includes(49279));
+  assert.ok(BF.combinedBracketThresholds("BC").includes(57375));
   const full = h.steps.find((s) => s.contribution === 10000);
-  assert.equal(full.extraRefund, 2050);
-  assert.equal(full.marginalRatePercent, 20.5);
-  assert.ok(h.notes.some((n) => n.includes("federal") && n.includes("Provincial tax savings") && n.includes("would be extra")));
+  assert.equal(full.extraRefund, 2820);
+  assert.equal(full.marginalRatePercent, 28.2);
+  assert.equal(h.rateBeforePercent, 28.2);
+  assert.equal(h.rateAfterPercent, 22.2);
+  assert.ok(!(h.notes || []).some((n) => n.includes("would be extra")));
 });
 
 test("25. Federal programs surface in BC; Manitoba programs do not", () => {
@@ -387,6 +395,9 @@ test("25. Federal programs surface in BC; Manitoba programs do not", () => {
   assert.ok(!ids.includes("hatc"));
   assert.ok(!ids.includes("rent-assist"));
   assert.ok(!ids.includes("manitoba-child-benefit"));
+  assert.ok(ids.includes("bc-renters-tax-credit"));
+  assert.ok(!ids.includes("on-trillium"));
+  assert.ok(!ids.includes("ab-child-family-benefit"));
   const own = BF.matchAll({
     province: "BC", age: 40, marital: "single",
     householdIncome: 50000, working: true, workingIncome: 50000,
@@ -394,6 +405,103 @@ test("25. Federal programs surface in BC; Manitoba programs do not", () => {
   }).filter((m) => m.estimate.match).map((m) => m.program.id);
   assert.ok(own.includes("home-buyers-amount"));
   assert.ok(own.includes("mhrtc"));
+  assert.ok(!own.includes("bc-renters-tax-credit"));
+});
+
+
+test("26. Each completed province or territory has official 2025 brackets and a BPA credit check", () => {
+  const checks = {
+    AB: { taxable: 30000, tax: 614.16, rate: 0.08, bpa: 22323 },
+    BC: { taxable: 20000, tax: 357.64, rate: 0.0506, bpa: 12932 },
+    NB: { taxable: 20000, tax: 620.78, rate: 0.094, bpa: 13396 },
+    NL: { taxable: 20000, tax: 777.17, rate: 0.087, bpa: 11067 },
+    NS: { taxable: 20000, tax: 725.70, rate: 0.0879, bpa: 11744 },
+    NT: { taxable: 20000, tax: 127.32, rate: 0.059, bpa: 17842 },
+    NU: { taxable: 20000, tax: 29.04, rate: 0.04, bpa: 19274 },
+    PE: { taxable: 20000, tax: 508.25, rate: 0.095, bpa: 14650 },
+    SK: { taxable: 25000, tax: 578.44, rate: 0.105, bpa: 19491 },
+    YT: { taxable: 20000, tax: 247.74, rate: 0.064, bpa: 16129 }
+  };
+  Object.keys(checks).forEach((code) => {
+    const c = checks[code];
+    const res = BF.provincialBasicTax(code, c.taxable, {});
+    assert.equal(res.tax, c.tax, code + " tax");
+    assert.equal(res.marginalRate, c.rate, code + " rate");
+    assert.equal(res.bpa, c.bpa, code + " bpa");
+  });
+  const on = BF.provincialBasicTax("ON", 20000, { dependantsUnder18: 0 });
+  assert.equal(on.bpa, 12747);
+  assert.equal(on.marginalRate, 0.0505);
+  assert.equal(on.healthPremium, 0);
+  assert.equal(on.taxReduction, 221.72);
+  assert.equal(on.tax, 144.56);
+  const mbKeep = BF.PROVINCIAL_TAX_2025.MB;
+  assert.equal(mbKeep.brackets[0][1], 47000);
+  assert.equal(mbKeep.brackets[1][1], 100000);
+  assert.equal(BF.provincialBasicTax("QC", 20000, {}), null);
+});
+
+test("27. Quebec applies the 16.5% federal abatement and does not invent a provincial return", () => {
+  const res = BF.estimateTaxRefund({
+    province: "QC", age: 35, marital: "single",
+    householdIncome: 70000, working: true, workingIncome: 70000,
+    housing: "own", children: [], taxWithheld: 15000
+  });
+  assert.equal(res.quebecReturnExcluded, true);
+  assert.equal(res.provincialIncluded, false);
+  assert.equal(res.federalOnly, false);
+  assert.equal(res.provincialTax, 0);
+  assert.equal(res.manitobaTax, 0);
+  assert.ok(res.federalAbatement > 0);
+  assert.equal(res.federalAbatement, Math.round((res.federalTax + res.federalAbatement) * 0.165 * 100) / 100);
+  assert.ok(res.assumptions.some((a) => a.includes("Quebec provincial return not included") && a.includes("16.5%")));
+  const h = BF.rrspHelper({
+    province: "QC", age: 35, marital: "single",
+    householdIncome: 70000, working: true, workingIncome: 70000,
+    housing: "own", children: [], rrspRoom: 10000
+  });
+  assert.ok(h.notes.some((n) => n.includes("Quebec provincial return not included")));
+  assert.ok(!(h.notes || []).some((n) => n.includes("would be extra")));
+});
+
+test("28. BC renter at $28k gets the $400 renter's tax credit in the tax estimate", () => {
+  const res = BF.estimateTaxRefund({
+    province: "BC", age: 32, marital: "single",
+    householdIncome: 28000, working: true, workingIncome: 28000,
+    housing: "rent", children: []
+  });
+  const rtc = res.refundableCredits.find((c) => c.id === "bc-renters-tax-credit");
+  assert.ok(rtc);
+  assert.equal(rtc.amount, 400);
+  assert.equal(res.provincialIncluded, true);
+  assert.equal(res.federalOnly, false);
+});
+
+test("29. Ontario and Alberta programs surface only in those provinces", () => {
+  const on = BF.matchAll({
+    province: "ON", age: 40, marital: "single",
+    householdIncome: 40000, working: true, workingIncome: 40000,
+    housing: "rent", children: [], gender: "prefer-not"
+  }).filter((m) => m.estimate.match).map((m) => m.program.id);
+  assert.ok(on.includes("on-trillium"));
+  assert.ok(on.includes("cgeb"));
+  assert.ok(!on.includes("bc-renters-tax-credit"));
+  assert.ok(!on.includes("ratc"));
+  const ab = BF.matchAll({
+    province: "AB", age: 35, marital: "single",
+    householdIncome: 30000, working: true, workingIncome: 30000,
+    housing: "rent", children: [{ age: 6 }], gender: "prefer-not"
+  }).filter((m) => m.estimate.match).map((m) => m.program.id);
+  assert.ok(ab.includes("ab-child-family-benefit"));
+  assert.ok(ab.includes("ccb"));
+  assert.ok(!ab.includes("on-trillium"));
+  const onEst = BF.estimateTaxRefund({
+    province: "ON", age: 40, marital: "single",
+    householdIncome: 40000, working: true, workingIncome: 40000,
+    housing: "rent", children: []
+  });
+  assert.equal(onEst.provincialIncluded, true);
+  assert.ok(onEst.provincialTax > 0);
 });
 
 console.log(`\n${passed} passed, 0 failed, ${passed} total`);

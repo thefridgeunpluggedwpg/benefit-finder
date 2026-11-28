@@ -746,10 +746,11 @@
     if (typeof BF.estimateTaxRefund !== "function") return "";
     var tax = BF.estimateTaxRefund(state.profile, { alreadyReceiving: state.alreadyReceiving || {} });
     var heroClass = "tax-payable";
-    var scope = tax.federalOnly ? " federal" : "";
+    var scope = (tax.federalOnly || tax.quebecReturnExcluded) ? " federal" : "";
     var heroLabel = "Estimated 2025" + scope + " tax payable";
     var heroAmount = fmtMoneyCents(tax.totalTaxPayable);
-    var heroCaption = "Estimated 2025" + (tax.federalOnly ? " federal" : "") + " income tax before T4 deductions. Enter tax already deducted (T4 Box 22) in Step 3 to see your refund or balance owing.";
+    var heroCaption = "Estimated 2025" + (tax.federalOnly || tax.quebecReturnExcluded ? " federal" : "") + " income tax before T4 deductions. Enter tax already deducted (T4 Box 22) in Step 3 to see your refund or balance owing.";
+    var ratePartners = tax.isManitoba ? " & Manitoba" : (tax.provincialIncluded ? " & " + (tax.provinceName || "") : " federal");
 
     if (tax.hasTaxWithheld || tax.totalRefundableCredits > 0 || tax.totalTaxPayable === 0) {
       if (tax.status === "refund") {
@@ -757,13 +758,13 @@
         heroLabel = "Estimated 2025" + scope + " tax refund";
         heroAmount = fmtMoneyCents(tax.amountAbs);
         heroCaption = tax.hasTaxWithheld
-          ? "Based on 2025 CRA" + (tax.isManitoba ? " & Manitoba" : " federal") + " rates, your T4 tax deducted, and eligible refundable tax credits."
+          ? "Based on 2025 CRA" + ratePartners + " rates, your T4 tax deducted, and eligible refundable tax credits."
           : "Based on eligible 2025 refundable tax credits (no T4 Box 22 tax deducted was entered).";
       } else {
         heroClass = "tax-owing";
         heroLabel = "Estimated 2025" + scope + " balance owing";
         heroAmount = fmtMoneyCents(tax.amountAbs);
-        heroCaption = "Estimated" + (tax.federalOnly ? " federal" : "") + " tax payable minus T4 tax already deducted and eligible refundable credits.";
+        heroCaption = "Estimated" + (tax.federalOnly || tax.quebecReturnExcluded ? " federal" : "") + " tax payable minus T4 tax already deducted and eligible refundable credits.";
       }
     }
 
@@ -784,8 +785,8 @@
 
     return (
       '<section class="panel" id="taxEstimatePanel">' +
-        '<p class="fine">2025 Tax Year Estimate · ' + (tax.isManitoba ? 'Federal + Manitoba' : (tax.federalOnly ? 'Federal only' : 'Federal + ' + esc(tax.provinceName || ""))) + '</p>' +
-        (tax.federalOnly ? '<p class="notice" id="federalOnlyNotice">Provincial tax not yet included for ' + esc(tax.provinceName || "this province") + '; federal estimate shown.</p>' : '') +
+        '<p class="fine">2025 Tax Year Estimate · ' + (tax.isManitoba ? 'Federal + Manitoba' : (tax.quebecReturnExcluded ? 'Federal (Quebec provincial return not included)' : (tax.federalOnly ? 'Federal only' : 'Federal + ' + esc(tax.provinceName || "")))) + '</p>' +
+        (tax.quebecReturnExcluded ? '<p class="notice" id="quebecNotice">Quebec provincial return not included. The 16.5% federal Quebec abatement is applied.</p>' : (tax.federalOnly ? '<p class="notice" id="federalOnlyNotice">Provincial tax not yet included for ' + esc(tax.provinceName || "this province") + '; federal estimate shown.</p>' : '')) +
         '<div class="tax-hero ' + heroClass + '">' +
           '<div class="tax-label">' + esc(heroLabel) + '</div>' +
           '<div class="amount" id="taxRefundAmount">' + esc(heroAmount) + '</div>' +
@@ -804,8 +805,9 @@
           (tax.deductions && tax.deductions.labourMobility > 0 ? '<tr><td>Labour mobility deduction</td><td>−' + esc(fmtMoneyCents(tax.deductions.labourMobility)) + '</td></tr>' : '') +
           (tax.deductions && tax.deductions.other > 0 ? '<tr><td>Other deductions entered</td><td>−' + esc(fmtMoneyCents(tax.deductions.other)) + '</td></tr>' : '') +
           '<tr><td>Estimated taxable income</td><td>' + esc(fmtMoneyCents(tax.taxableIncome)) + '</td></tr>' +
-          '<tr><td>Federal tax (2025 brackets minus 14.5% credits)</td><td>' + esc(fmtMoneyCents(tax.federalTax)) + '</td></tr>' +
-          (tax.isManitoba ? '<tr><td>Manitoba tax (2025 brackets minus 10.8% credits)</td><td>' + esc(fmtMoneyCents(tax.manitobaTax)) + '</td></tr>' : '') +
+          '<tr><td>Federal tax (2025 brackets minus 14.5% credits)</td><td>' + esc(fmtMoneyCents((tax.federalTax || 0) + (tax.federalAbatement || 0))) + '</td></tr>' +
+          (tax.federalAbatement > 0 ? '<tr><td>Federal Quebec abatement (16.5%)</td><td>−' + esc(fmtMoneyCents(tax.federalAbatement)) + '</td></tr>' : '') +
+          (tax.isManitoba ? '<tr><td>Manitoba tax (2025 brackets minus 10.8% credits)</td><td>' + esc(fmtMoneyCents(tax.manitobaTax)) + '</td></tr>' : (tax.provincialIncluded ? '<tr><td>' + esc((tax.provinceName || "Provincial") + " tax (2025 brackets minus basic credits)") + '</td><td>' + esc(fmtMoneyCents(tax.provincialTax)) + '</td></tr>' : '')) +
           (tax.fedDivCredit > 0 ? '<tr><td>Federal dividend tax credit</td><td>−' + esc(fmtMoneyCents(tax.fedDivCredit)) + '</td></tr>' : '') +
           (tax.mbDivCredit > 0 ? '<tr><td>Manitoba dividend tax credit</td><td>−' + esc(fmtMoneyCents(tax.mbDivCredit)) + '</td></tr>' : '') +
           (tax.selfEmployedCppPayable > 0 ? '<tr><td>Self-employed CPP contributions on return</td><td>' + esc(fmtMoneyCents(tax.selfEmployedCppPayable)) + '</td></tr>' : '') +

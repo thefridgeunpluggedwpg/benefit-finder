@@ -103,3 +103,16 @@ Amounts and rules in Benefit Finder come from these pages. If a figure could not
 - CPP disability benefit: https://www.canada.ca/en/services/benefits/publicpensions/cpp/cpp-disability-benefit.html
 - EI regular benefits: https://www.canada.ca/en/services/benefits/ei/ei-regular-benefit.html
 - 2025 federal and provincial tax brackets: https://www.canada.ca/en/revenue-agency/services/tax/individuals/tax-rates-brackets/last-year.html
+
+## 2025 provincial and territorial tax (v1.6.0)
+
+- Brackets and rates (all provinces and territories except Quebec): [CRA last-year tax rates and income brackets (2025)](https://www.canada.ca/en/revenue-agency/services/tax/individuals/tax-rates-brackets/last-year.html)
+- Basic personal amounts (line 58040): [CRA basic personal amount 2025](https://www.canada.ca/en/revenue-agency/services/tax/individuals/topics/about-your-tax-return/tax-return/completing-a-tax-return/deductions-credits-expenses/line-30000-basic-personal-amount.html)
+- Non-refundable credit rate is the lowest provincial or territorial rate: [T4127 Payroll Deductions Formulas, July 2025 (K1P)](https://www.canada.ca/en/revenue-agency/services/forms-publications/payroll/payroll-deductions-t4127-payroll-deductions-formulas/t4127-jul-121st-edition-effective-july-1-2025/t4127-jul-payroll-deductions-formulas.html)
+- Ontario 2025 surtax ($5,710 / $7,307), tax reduction ($294 basic, $544 per dependant under 18), spouse/dependant amounts ($11,905), and health premium: [T4032-ON July 2025](https://www.canada.ca/en/revenue-agency/services/forms-publications/payroll/t4032-payroll-deductions-tables-previous-years/t4032on-july-2025/t4032on-july-general-information.html)
+- Manitoba brackets in the engine stay at $47,000 / $100,000 (indexation pause as used in earlier Benefit Finder versions). CRA last-year currently lists $47,564 / $101,200; those figures were not used to rewrite Manitoba math.
+- Quebec: 16.5% federal abatement only. Quebec provincial return is not calculated. Revenu Québec rates: [Revenu Québec income tax rates](https://www.revenuquebec.ca/en/citizens/income-tax-return/completing-your-income-tax-return/tax-rates/)
+- B.C. renter's tax credit 2025 (up to $400, reduced 2% over $64,764, zero at $84,764): [gov.bc.ca renter's tax credit](https://www2.gov.bc.ca/gov/content/taxes/income-taxes/personal/credits/renters-tax-credit)
+- B.C. climate action tax credit: ended; April 2025 was the final payment. Not included as a current credit.
+- Alberta Child and Family Benefit maximums, July 2025 – June 2026: [Alberta Child and Family Benefit](https://www.alberta.ca/alberta-child-and-family-benefit)
+- Ontario Trillium Benefit: [CRA Ontario provincial and territorial programs](https://www.canada.ca/en/revenue-agency/services/child-family-benefits/provincial-territorial-programs/province-ontario.html)

@@ -335,10 +335,12 @@
       mbCreditBase = r2(mbBpa + mbAgeAmt + mbSpouseAmt + mbDependantAmt + baseCppCredit + eiPremiums + mbDtcAmt);
       mbCredits = r2(mbCreditBase * 0.108);
       manitobaTax = Math.max(0, r2(mbGross.tax - mbCredits));
-    } else {
-      var provName = (root.BF.provinceName && root.BF.provinceName(province)) || province;
-      assumptions.push("Provincial tax not yet included for " + provName + "; federal estimate shown.");
     }
+    var isQc = province === "QC";
+    var provincialTax = 0;
+    var provincialIncluded = isMb;
+    var quebecReturnExcluded = isQc;
+    var federalAbatement = 0;
 
     // Write-off credits (tuition, medical, donations, volunteer firefighter, MB items)
     var tuition = woGet(p, "tuition");
@@ -380,6 +382,33 @@
     if (isMb) {
       mbCredits = r2(mbCredits + mbDivCredit + mbMedCredit + mbDonCredit + mbFitCredit + mbLsvccCredit);
       manitobaTax = Math.max(0, r2(mbGross.tax - mbCredits));
+      provincialTax = manitobaTax;
+    }
+
+    if (isQc) {
+      federalAbatement = r2(federalTax * 0.165);
+      federalTax = Math.max(0, r2(federalTax - federalAbatement));
+      assumptions.push("Quebec provincial return not included. The 16.5% federal Quebec abatement is applied.");
+    } else if (!isMb && root.BF.provincialBasicTax) {
+      var provRes = root.BF.provincialBasicTax(province, taxableIncome, {
+        cppBase: baseCppCredit,
+        ei: eiPremiums,
+        federalBpa: fedBpa,
+        couple: couple,
+        spouseIncome: hasSpouseIncome ? spouseInc : undefined,
+        singleWithChild: !couple && kids.under18 > 0,
+        dependantsUnder18: kids.under18
+      });
+      if (provRes) {
+        provincialTax = provRes.tax;
+        provincialIncluded = true;
+      } else {
+        var provName = (root.BF.provinceName && root.BF.provinceName(province)) || province;
+        assumptions.push("Provincial tax not yet included for " + provName + "; federal estimate shown.");
+      }
+    } else if (!isMb) {
+      var provNameFallback = (root.BF.provinceName && root.BF.provinceName(province)) || province;
+      assumptions.push("Provincial tax not yet included for " + provNameFallback + "; federal estimate shown.");
     }
 
     // Refundable tax credits claimed on the 2025 return (respecting permanent alreadyReceiving exclusion!)
@@ -430,6 +459,17 @@
       assumptions.push("Manitoba Homeowners Affordability Tax Credit (up to $1,500 for 2025) is usually applied on your property tax bill; if not, it can be claimed on Form MB479 with your school tax amount.");
     }
 
+    var bcRtcAmount = 0;
+    if (province === "BC" && p.housing === "rent" && !already["bc-renters-tax-credit"]) {
+      var ageOkRtc = age >= 19 || couple || kids.under18 > 0;
+      if (ageOkRtc) {
+        bcRtcAmount = r2(Math.max(0, 400 - 0.02 * Math.max(0, adjFamilyNet - 64764)));
+        if (bcRtcAmount > 0) {
+          refundableItems.push({ id: "bc-renters-tax-credit", label: "B.C. renter's tax credit (2025 Form BC479)", amount: bcRtcAmount });
+        }
+      }
+    }
+
     var educatorExp = woGet(p, "educatorSupplies");
     var educatorCredit = 0;
     if (!already["educatorSupplies"] && educatorExp > 0) {
@@ -448,16 +488,21 @@
       if (mbCare > 0) refundableItems.push({ id: "mbCaregiver", label: "Manitoba Primary Caregiver Tax Credit (2025 MB479)", amount: mbCare });
     }
 
-    var totalRefundableCredits = r2(cwbAmount + cwbSuppAmount + mbRatcAmount + educatorCredit + ctcCredit + mbCare);
+    var totalRefundableCredits = r2(cwbAmount + cwbSuppAmount + mbRatcAmount + bcRtcAmount + educatorCredit + ctcCredit + mbCare);
 
-    var totalTaxPayable = r2(federalTax + manitobaTax + selfEmployedCppPayable);
+    var totalTaxPayable = r2(federalTax + provincialTax + selfEmployedCppPayable);
     var hasTaxWithheld = hasVal(p.taxWithheld);
     var taxWithheld = hasTaxWithheld ? num(p.taxWithheld) : 0;
 
     // Net position: positive = refund, negative = balance owing
     var netBalance = r2(taxWithheld + totalRefundableCredits - totalTaxPayable);
     var status = netBalance >= 0 ? "refund" : "owing";
-    var marginalRate = grossIncome > 0 ? r2((fedGross.marginalRate + (isMb ? mbGross.marginalRate : 0)) * 100) : 0;
+    var provMarginal = 0;
+    if (isMb) provMarginal = mbGross.marginalRate;
+    else if (isQc) provMarginal = 0;
+    else if (provincialIncluded && root.BF.provincialMarginalRate) provMarginal = root.BF.provincialMarginalRate(province, taxableIncome) || 0;
+    var fedMarginalEff = isQc ? fedGross.marginalRate * 0.835 : fedGross.marginalRate;
+    var marginalRate = grossIncome > 0 ? r2((fedMarginalEff + provMarginal) * 100) : 0;
     var effectiveRate = grossIncome > 0 ? r2((totalTaxPayable / grossIncome) * 100) : 0;
 
     return {
@@ -499,8 +544,11 @@
       },
       fedDivCredit: r2(fedDivCredit || 0),
       mbDivCredit: r2(mbDivCredit || 0),
-      federalOnly: !isMb,
-      provincialIncluded: isMb,
+      provincialTax: r2(provincialTax),
+      federalAbatement: r2(federalAbatement),
+      quebecReturnExcluded: !!quebecReturnExcluded,
+      federalOnly: !provincialIncluded && !quebecReturnExcluded,
+      provincialIncluded: !!provincialIncluded,
       provinceName: (root.BF.provinceName && root.BF.provinceName(province)) || province
     };
   };
@@ -514,7 +562,18 @@
 
   root.BF.RRSP_DOLLAR_LIMIT_2025 = RRSP_DOLLAR_LIMIT_2025;
   root.BF.combinedBracketThresholds = function (province) {
-    return (province === "MB" ? COMBINED_THRESHOLDS_MB_2025 : FED_THRESHOLDS_2025).slice();
+    if (province === "MB") return COMBINED_THRESHOLDS_MB_2025.slice();
+    var fed = FED_THRESHOLDS_2025.slice();
+    if (province === "QC" || !root.BF.provincialThresholds) return fed;
+    var prov = root.BF.provincialThresholds(province) || [];
+    var all = fed.concat(prov);
+    all.sort(function (a, b) { return a - b; });
+    var uniq = [];
+    var i;
+    for (i = 0; i < all.length; i++) {
+      if (i === 0 || all[i] !== all[i - 1]) uniq.push(all[i]);
+    }
+    return uniq;
   };
 
   function cloneProfileForRrsp(profile, amount) {
@@ -531,10 +590,13 @@
     return q;
   }
 
-  function combinedMarginalPercent(taxable, isMb) {
+  function combinedMarginalPercent(taxable, province) {
     var fed = calcProgressive(taxable, FED_BRACKETS_2025).marginalRate;
-    var mb = isMb ? calcProgressive(taxable, MB_BRACKETS_2025).marginalRate : 0;
-    return r2((fed + mb) * 100);
+    if (province === "QC") return r2(fed * 0.835 * 100);
+    var prov = 0;
+    if (province === "MB") prov = calcProgressive(taxable, MB_BRACKETS_2025).marginalRate;
+    else if (root.BF.provincialMarginalRate) prov = root.BF.provincialMarginalRate(province, taxable) || 0;
+    return r2((fed + prov) * 100);
   }
 
   function nextLowerThreshold(taxable, thresholds) {
@@ -651,8 +713,8 @@
       return (neg ? "−" : "") + s;
     }
 
-    var rateNow = combinedMarginalPercent(Math.max(0, zero.taxableIncome), isMb);
-    var rateAfter = targetThreshold != null ? combinedMarginalPercent(targetThreshold, isMb) : rateNow;
+    var rateNow = combinedMarginalPercent(Math.max(0, zero.taxableIncome), p.province || "MB");
+    var rateAfter = targetThreshold != null ? combinedMarginalPercent(targetThreshold, p.province || "MB") : rateNow;
 
     var notes = [];
     if (alreadyBelowBpa || taxAlreadyZero) {
@@ -675,7 +737,9 @@
     if (!hasRoom) {
       notes.push("No RRSP room was entered, so this list uses the 2025 RRSP dollar limit of $32,490 as a cap. Your personal room is on your CRA Notice of Assessment and may be higher because unused room carries forward.");
     }
-    if (!isMb) {
+    if ((p.province || "MB") === "QC") {
+      notes.push("Quebec provincial return not included. Savings rates shown are federal after the 16.5% Quebec abatement.");
+    } else if (zero.federalOnly) {
       notes.push("Savings rates shown are federal. Provincial tax savings for " + ((root.BF.provinceName && root.BF.provinceName(p.province)) || p.province || "your province") + " would be extra.");
     }
     notes.push("Contributions in the first 60 days of 2026 count for the 2025 tax year.");

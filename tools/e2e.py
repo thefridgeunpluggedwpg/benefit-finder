@@ -1,4 +1,4 @@
-"""Benefit Finder v1.5.0 end-to-end tests (Playwright + local Chrome).
+"""Benefit Finder v1.6.0 end-to-end tests (Playwright + local Chrome).
 Serve the app on 127.0.0.1:8940 and run:
   /workspace/.venv-pw/bin/python tools/e2e.py
 Exit code 1 if any test fails.
@@ -74,7 +74,7 @@ def main():
         check("fees: 3% applies to non-DTC amounts only ($451.20)", abs(fees.get("percentFee") - 451.20) < 0.02 and abs(fees.get("baseFound") - 15040) < 0.01, fees)
         check("fees: DTC amount is excluded and $100 cap is recorded", fees.get("dtcCapCad") == 100 and fees.get("dtcFound") == 3480, fees)
         check("catalog has at least 20 official programs", page.evaluate("BF.PROGRAMS.length") >= 20, page.evaluate("BF.PROGRAMS.length"))
-        check("version is 1.5.0", page.evaluate("BF.VERSION") == "1.5.0", page.evaluate("BF.VERSION"))
+        check("version is 1.6.0", page.evaluate("BF.VERSION") == "1.6.0", page.evaluate("BF.VERSION"))
 
         WOMEN_IDS = ["wes-loan-fund", "wes-business-support", "mb-women-trades", "mb-gbv-supports"]
 
@@ -512,10 +512,11 @@ def main():
             "householdIncome": 28000, "working": True, "workingIncome": 28000,
             "housing": "rent", "taxWithheld": 2000, "children": [], "rrspRoom": 5000
         })
-        check("BC results show the federal-only provincial tax notice", "Provincial tax not yet included for British Columbia" in page.inner_text("#federalOnlyNotice") and "federal estimate shown" in page.inner_text("#federalOnlyNotice").lower(), page.inner_text("#federalOnlyNotice"))
-        check("BC tax headline is labelled federal-only", "federal" in page.inner_text("#taxEstimatePanel").lower() and "federal + manitoba" not in page.inner_text("#taxEstimatePanel").lower())
-        check("BC results include federal programs and exclude Manitoba programs", page.locator('[data-program-id="cgeb"]').count() == 1 and page.locator('[data-program-id="cwb"]').count() == 1 and page.locator('[data-program-id="ratc"]').count() == 0 and page.locator('[data-program-id="hatc"]').count() == 0 and page.locator('[data-program-id="rent-assist"]').count() == 0)
-        check("BC RRSP helper works and notes provincial savings would be extra", page.locator("#rrspHelperPanel").count() == 1 and "would be extra" in page.inner_text("#rrspHelperPanel").lower() and "5,000.00 contribution" in page.inner_text("#rrspHelperPanel"))
+        panel = page.inner_text("#taxEstimatePanel")
+        check("BC results include B.C. provincial tax, not a federal-only notice", "Federal + British Columbia" in panel and "British Columbia tax" in panel and page.locator("#federalOnlyNotice").count() == 0 and "Provincial tax not yet included" not in panel, panel)
+        check("BC tax headline is not labelled federal-only", "federal only" not in panel.lower() and "federal + manitoba" not in panel.lower(), panel)
+        check("BC results include federal programs, the B.C. renter's credit, and exclude Manitoba programs", page.locator('[data-program-id="cgeb"]').count() == 1 and page.locator('[data-program-id="cwb"]').count() == 1 and page.locator('[data-program-id="bc-renters-tax-credit"]').count() == 1 and page.locator('[data-program-id="ratc"]').count() == 0 and page.locator('[data-program-id="hatc"]').count() == 0 and page.locator('[data-program-id="rent-assist"]').count() == 0)
+        check("BC RRSP helper uses combined rates and does not say provincial savings would be extra", page.locator("#rrspHelperPanel").count() == 1 and "would be extra" not in page.inner_text("#rrspHelperPanel").lower() and "5,000.00 contribution" in page.inner_text("#rrspHelperPanel"))
 
         check("no page errors", not errs, errs)
 

@@ -1,10 +1,10 @@
 # Benefit Finder
 
-A prototype web app for a Manitoba financial-planner client. It helps one person estimate their **2025 Canadian & Manitoba tax refund (or balance owing)**, see which **federal and Manitoba** benefits may apply, shows an **approximate** dollar total, and builds an application packet after they approve. It is a single-user, installable phone app. It is **not for sale** as a subscription product.
+A prototype web app for a Manitoba financial-planner client. It helps one person estimate their **2025 Canadian tax refund (or balance owing)**, including **provincial or territorial tax** for every jurisdiction except a full Quebec return (the 16.5% federal Quebec abatement is applied), see which **federal and provincial** benefits may apply, shows an **approximate** dollar total, and builds an application packet after they approve. It is a single-user, installable phone app. It is **not for sale** as a subscription product.
 
 **Live (when published):** https://thefridgeunpluggedwpg.github.io/benefit-finder/
 
-Version **1.5.0**. The product name lives in one place: `js/config.js` (`BF.APP_NAME`).
+Version **1.6.0**. The product name lives in one place: `js/config.js` (`BF.APP_NAME`).
 
 This is a **prototype — demo build**. The badge is visible in the app. It does **not** submit applications to the CRA, Service Canada, or the Government of Manitoba. There is no public API that would let an app do that on someone’s behalf.
 

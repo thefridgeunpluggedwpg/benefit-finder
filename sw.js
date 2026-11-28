@@ -1,4 +1,4 @@
-const CACHE = 'benefit-finder-v1.5.0';
+const CACHE = 'benefit-finder-v1.6.0';
 const FILES = [
   './',
   'index.html',
@@ -13,6 +13,7 @@ const FILES = [
   'js/config.js',
   'js/programs.js',
   'js/match.js',
+  'js/provinces.js',
   'js/tax.js',
   'js/writeoffs.js',
   'js/storage.js',
