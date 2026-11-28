@@ -1,4 +1,4 @@
-"""Benefit Finder v1.4.0 end-to-end tests (Playwright + local Chrome).
+"""Benefit Finder v1.4.1 end-to-end tests (Playwright + local Chrome).
 Serve the app on 127.0.0.1:8940 and run:
   /workspace/.venv-pw/bin/python tools/e2e.py
 Exit code 1 if any test fails.
@@ -74,7 +74,7 @@ def main():
         check("fees: 3% applies to non-DTC amounts only ($451.20)", abs(fees.get("percentFee") - 451.20) < 0.02 and abs(fees.get("baseFound") - 15040) < 0.01, fees)
         check("fees: DTC amount is excluded and $100 cap is recorded", fees.get("dtcCapCad") == 100 and fees.get("dtcFound") == 3480, fees)
         check("catalog has at least 20 official programs", page.evaluate("BF.PROGRAMS.length") >= 20, page.evaluate("BF.PROGRAMS.length"))
-        check("version is 1.4.0", page.evaluate("BF.VERSION") == "1.4.0", page.evaluate("BF.VERSION"))
+        check("version is 1.4.1", page.evaluate("BF.VERSION") == "1.4.1", page.evaluate("BF.VERSION"))
 
         WOMEN_IDS = ["wes-loan-fund", "wes-business-support", "mb-women-trades", "mb-gbv-supports"]
 
@@ -158,6 +158,19 @@ def main():
         body = page.inner_text("#resultsPanel")
         total_text = page.inner_text("#estimateTotal")
         check("results show an approximate dollar total", "$" in total_text and total_text != "$0", total_text)
+        check("results headline is estimated refund/benefits based on your answers", "estimated refund/benefits based on your answers:" in page.inner_text("#resultsHeadline").lower() and "we can save you" not in page.inner_text("body").lower(), page.inner_text("#resultsHeadline"))
+        legal = "not a cpa or professional accountant. not tax advice. not a filed return. actual amounts depend on your slips and cra"
+        check("legal line is visible before results", legal in page.inner_text("#resultsLegalLine").lower(), page.inner_text("#resultsLegalLine"))
+        check("legal line is visible in the footer", legal in page.inner_text("#legalFooter").lower(), page.inner_text("#legalFooter"))
+        check("existing tax disclaimer is kept", "not tax advice" in page.inner_text("#taxDisclaimer").lower() and "estimate only" in page.inner_text("#taxDisclaimer").lower())
+        check("share-with-accountant checkbox is unchecked by default", page.locator("#shareAccountantConsent").count() == 1 and page.is_checked("#shareAccountantConsent") is False)
+        check("app still shows totals and programs when sharing is declined", "$" in page.inner_text("#estimateTotal") and page.inner_text("#estimateTotal") != "$0" and page.locator("#btnApprove").count() == 1 and "Canada Child Benefit" in page.inner_text("#resultsPanel"), page.inner_text("#estimateTotal"))
+        sin_inputs = page.locator('input[name*="sin" i], input[id*="sin" i], input[name*="socialInsurance" i]').count()
+        body_has_sin_field_label = page.locator('label:has-text("SIN"), label:has-text("Social Insurance")').count()
+        check("no SIN field is present", sin_inputs == 0 and body_has_sin_field_label == 0 and "no sin is ever requested" in page.inner_text("#privacyNote").lower(), {"sin_inputs": sin_inputs, "labels": body_has_sin_field_label})
+        check("privacy note says answers stay on this device and no SIN is requested", "stay on this device" in page.inner_text("#privacyNote").lower() and "no sin is ever requested" in page.inner_text("#privacyNote").lower())
+        check("see an accountant card is on results", "See an accountant" in page.inner_text("#seeAccountantPanel") and "Disability Tax Credit" in page.inner_text("#seeAccountantPanel") and "CRA letters" in page.inner_text("#seeAccountantPanel"))
+        check("ethnicity stays optional with Prefer not to say", page.evaluate("() => (BF.getState().profile.ethnicity || []).indexOf('prefer-not') >= 0") is True)
         check("results include Canada Child Benefit", "Canada Child Benefit" in body)
         check("results include CCB amount $15,040", "15,040" in body.replace(" ", ""), body[:500])
         check("results mention official benefit year", "July 2026" in body or "2026" in body)
@@ -490,6 +503,7 @@ def main():
         check("RRSP helper names the $11,960 sweet spot above $10k room", "11,960" in helper and "57,375" in helper and "not enough" in helper.lower(), page.inner_text("#rrspHelperNotes"))
         check("RRSP helper includes 60-day, carryforward, deduct later, and FHSA/TFSA notes", "first 60 days of 2026" in helper and "carries forward" in helper.lower() and "higher-income year" in helper and "FHSA" in helper and "TFSA" in helper, helper[-500:])
         check("existing tax disclaimer remains on the page", "not tax advice" in page.inner_text("#taxDisclaimer").lower())
+        check("RRSP helper and write-offs are estimates for education, not personalized advice", "estimates for education, not personalized advice" in page.inner_text("#rrspHelperPanel").lower() and "estimates for education, not personalized advice" in page.inner_text("#writeoffsPanel").lower())
         overflow = page.evaluate("() => document.documentElement.scrollWidth > window.innerWidth")
         check("RRSP helper does not cause horizontal overflow at 390px", overflow is False, overflow)
 

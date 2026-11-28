@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Benefit Finder">
 <meta name="application-name" content="Benefit Finder">
-<meta name="benefit-finder-version" content="1.4.0">
+<meta name="benefit-finder-version" content="1.4.1">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
 <link rel="icon" href="icons/icon-192.png" type="image/png" sizes="192x192">
@@ -46,7 +46,10 @@
     <li>Tap Add.</li>
   </ol>
 </div>
-<main id="view" tabindex="-1"></main>
+<main>
+  <div id="view" tabindex="-1"></div>
+  <footer id="legalFooter" class="legal-line">Not a CPA or professional accountant. Not tax advice. Not a filed return. Actual amounts depend on your slips and CRA’s assessment.</footer>
+</main>
 <nav class="tabbar" aria-label="Main">
   <button type="button" data-view="home" aria-current="page">Home</button>
   <button type="button" data-view="intake">Form</button>

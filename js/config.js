@@ -1,8 +1,9 @@
 /* Benefit Finder — app name lives here so it can be renamed in one place. */
 window.BF = window.BF || {};
 BF.APP_NAME = "Benefit Finder";
-BF.VERSION = "1.4.0";
-BF.CACHE_NAME = "benefit-finder-v1.4.0";
+BF.VERSION = "1.4.1";
+BF.CACHE_NAME = "benefit-finder-v1.4.1";
+BF.LEGAL_LINE = "Not a CPA or professional accountant. Not tax advice. Not a filed return. Actual amounts depend on your slips and CRA’s assessment.";
 BF.STORAGE_KEY = "benefit-finder-v1";
 BF.DEFAULT_FEE_PERCENT = 3;
 BF.MIN_FEE_PERCENT = 2;

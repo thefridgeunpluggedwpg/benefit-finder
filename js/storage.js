@@ -73,7 +73,9 @@ BF.defaultState = function () {
     alreadyReceiving: {},
     alreadyConfirmed: false,
     onboardingStarted: false,
-    leadClosed: false
+    leadClosed: false,
+    shareWithAccountant: false,
+    shareEthnicityWithAccountant: false
   };
 };
 
@@ -104,6 +106,8 @@ BF.loadState = function () {
     if (typeof out.alreadyConfirmed !== "boolean") out.alreadyConfirmed = false;
     if (typeof out.onboardingStarted !== "boolean") out.onboardingStarted = false;
     if (typeof out.leadClosed !== "boolean") out.leadClosed = false;
+    if (out.shareWithAccountant !== true) out.shareWithAccountant = false;
+    if (out.shareEthnicityWithAccountant !== true) out.shareEthnicityWithAccountant = false;
     if (!Array.isArray(out.profile.ethnicity)) {
       var e = out.profile.ethnicity;
       out.profile.ethnicity = e && e !== "prefer-not" && e !== "not-listed" ? [e] : ["prefer-not"];

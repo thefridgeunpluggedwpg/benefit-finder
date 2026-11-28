@@ -694,7 +694,7 @@
     return (
       '<section class="panel" id="writeoffsPanel">' +
         '<h2>Possible 2025 write-offs</h2>' +
-        '<p class="fine">A checklist tailored to your answers. These are possible deductions and credits, not advice. Enter an amount only if you have receipts or slips — the refund estimate updates. Items you mark as already claimed are left out of the list and the estimate.</p>' +
+        '<p class="fine">A checklist tailored to your answers. These are estimates for education, not personalized advice. Enter an amount only if you have receipts or slips — the refund estimate updates. Items you mark as already claimed are left out of the list and the estimate.</p>' +
         undo +
         (rows || '<p class="muted">No tailored write-offs to show for these answers.</p>') +
       '</section>'
@@ -733,7 +733,7 @@
     return (
       '<section class="panel" id="rrspHelperPanel">' +
         '<h2>RRSP helper</h2>' +
-        '<p class="fine">Using the same 2025 tax estimate as above, here is how different RRSP amounts change your refund or balance owing. ' + esc(capLine) + ' This is an estimate, not tax advice — see the disclaimer above.</p>' +
+        '<p class="fine">Using the same 2025 tax estimate as above, here is how different RRSP amounts change your refund or balance owing. ' + esc(capLine) + ' These are estimates for education, not personalized advice. See the disclaimer above.</p>' +
         steps +
         '<div id="rrspHelperNotes">' + notes + '</div>' +
       '</section>'
@@ -819,7 +819,32 @@
     );
   }
 
+  function renderSeeAccountantCard() {
+    return (
+      '<section class="panel" id="seeAccountantPanel">' +
+        '<h2>See an accountant</h2>' +
+        '<p>This estimate is a starting point. See a certified accountant or tax preparer if you are filing a return, dealing with CRA letters, reporting self-employment or capital gains, applying for the Disability Tax Credit, or if this estimate looks off.</p>' +
+      '</section>'
+    );
+  }
+
+  function renderShareAccountantPanel() {
+    var share = !!state.shareWithAccountant;
+    var shareEth = share && !!state.shareEthnicityWithAccountant;
+    return (
+      '<section class="panel" id="shareAccountantPanel">' +
+        '<h2>Share with a partner accountant</h2>' +
+        '<p class="fine">This choice is separate from approving packets. The app works the same if you decline. Your choice is only saved on this device — this app does not send your answers anywhere.</p>' +
+        '<label class="choice"><input type="checkbox" id="shareAccountantConsent"' + (share ? " checked" : "") + '><span>Yes, share my answers with a partner accountant so they can contact me</span></label>' +
+        '<p class="fine">If you opt in, the answers that would be shared are your income, profession, and results, with a partner accountant. Background or ethnicity is shared only if you also tick the box below.</p>' +
+        '<label class="choice"><input type="checkbox" id="shareEthnicityConsent"' + (shareEth ? " checked" : "") + (share ? "" : " disabled") + '><span>Also share my background or ethnicity</span></label>' +
+        '<p class="fine" id="privacyNote"><strong>Privacy.</strong> Answers stay on this device. No SIN is ever requested.</p>' +
+      '</section>'
+    );
+  }
+
   function viewResults() {
+
     var all = matches();
     var t = BF.totals(all, { skipIds: skipAlreadyIds() });
     state.lastMatchCount = t.matched.length + (t.alreadyReceiving ? t.alreadyReceiving.length : 0);
@@ -867,13 +892,15 @@
         '<button class="btn ghost" type="button" data-go="alreadyEdit">Undo a Yes I chose by mistake</button></p>';
     }
     return (
+      '<p class="legal-line" id="resultsLegalLine">' + esc(BF.LEGAL_LINE) + '</p>' +
       renderTaxSection() +
       renderRrspHelperSection() +
       renderWriteoffsSection() +
+      renderSeeAccountantCard() +
       '<section class="panel" id="resultsPanel">' +
         '<p class="fine">Prototype — demo build. Estimates are approximate.</p>' +
         '<div class="total-block">' +
-          '<div class="amount" id="estimateTotal">' + fmtMoney(t.cash) + '</div>' +
+          '<h1 id="resultsHeadline">Estimated refund/benefits based on your answers: <span class="amount" id="estimateTotal">' + fmtMoney(t.cash) + '</span></h1>' +
           '<p class="caption" id="estimateCaption">Approximate estimated total of programs with a calculated or official-maximum amount, for the benefit years shown on each program.' +
             (t.hasVaries ? ' Some matches have no dollar figure and are listed as “amount varies.” They are not included in this total.' : "") +
             (t.hasLoans ? ' Loans are listed separately and are not included in this total.' : "") +
@@ -895,7 +922,8 @@
           '<button class="btn secondary" type="button" data-go="intake">Edit answers</button>' +
         '</div>' +
         onboardingCta() +
-      '</section>'
+      '</section>' +
+      renderShareAccountantPanel()
     );
   }
 
@@ -1220,6 +1248,20 @@
       });
       save();
       render();
+    });
+    var shareAcc = $("#shareAccountantConsent");
+    if (shareAcc) shareAcc.addEventListener("change", function () {
+      state.shareWithAccountant = !!shareAcc.checked;
+      if (!state.shareWithAccountant) state.shareEthnicityWithAccountant = false;
+      save();
+      var y = window.scrollY;
+      render();
+      window.scrollTo(0, y);
+    });
+    var shareEth = $("#shareEthnicityConsent");
+    if (shareEth) shareEth.addEventListener("change", function () {
+      state.shareEthnicityWithAccountant = !!(shareAcc && shareAcc.checked && shareEth.checked);
+      save();
     });
     var approve = $("#btnApprove");
     if (approve) approve.addEventListener("click", approveSelected);
