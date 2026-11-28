@@ -47,7 +47,7 @@
     var p = JSON.parse(JSON.stringify(state.profile));
     p.age = num(p.age);
     p.householdIncome = num(p.householdIncome);
-    p.workingIncome = num(p.workingIncome);
+    if (p.workingIncome !== "" && p.workingIncome != null) p.workingIncome = num(p.workingIncome);
     p.yearsInCanadaAfter18 = num(p.yearsInCanadaAfter18);
     p.children = (p.children || []).map(function (c) {
       return { age: num(c.age), hasDtc: !!c.hasDtc };
@@ -746,23 +746,24 @@
     if (typeof BF.estimateTaxRefund !== "function") return "";
     var tax = BF.estimateTaxRefund(state.profile, { alreadyReceiving: state.alreadyReceiving || {} });
     var heroClass = "tax-payable";
-    var heroLabel = "Estimated 2025 tax payable";
+    var scope = tax.federalOnly ? " federal" : "";
+    var heroLabel = "Estimated 2025" + scope + " tax payable";
     var heroAmount = fmtMoneyCents(tax.totalTaxPayable);
-    var heroCaption = "Estimated 2025 income tax before T4 deductions. Enter tax already deducted (T4 Box 22) in Step 3 to see your refund or balance owing.";
+    var heroCaption = "Estimated 2025" + (tax.federalOnly ? " federal" : "") + " income tax before T4 deductions. Enter tax already deducted (T4 Box 22) in Step 3 to see your refund or balance owing.";
 
     if (tax.hasTaxWithheld || tax.totalRefundableCredits > 0 || tax.totalTaxPayable === 0) {
       if (tax.status === "refund") {
         heroClass = "tax-refund";
-        heroLabel = "Estimated 2025 tax refund";
+        heroLabel = "Estimated 2025" + scope + " tax refund";
         heroAmount = fmtMoneyCents(tax.amountAbs);
         heroCaption = tax.hasTaxWithheld
-          ? "Based on 2025 CRA" + (tax.isManitoba ? " & Manitoba" : "") + " rates, your T4 tax deducted, and eligible refundable tax credits."
+          ? "Based on 2025 CRA" + (tax.isManitoba ? " & Manitoba" : " federal") + " rates, your T4 tax deducted, and eligible refundable tax credits."
           : "Based on eligible 2025 refundable tax credits (no T4 Box 22 tax deducted was entered).";
       } else {
         heroClass = "tax-owing";
-        heroLabel = "Estimated 2025 balance owing";
+        heroLabel = "Estimated 2025" + scope + " balance owing";
         heroAmount = fmtMoneyCents(tax.amountAbs);
-        heroCaption = "Estimated tax payable minus T4 tax already deducted and eligible refundable credits.";
+        heroCaption = "Estimated" + (tax.federalOnly ? " federal" : "") + " tax payable minus T4 tax already deducted and eligible refundable credits.";
       }
     }
 
@@ -783,7 +784,8 @@
 
     return (
       '<section class="panel" id="taxEstimatePanel">' +
-        '<p class="fine">2025 Tax Year Estimate · ' + (tax.isManitoba ? 'Federal + Manitoba' : 'Federal (provincial outside MB varies)') + '</p>' +
+        '<p class="fine">2025 Tax Year Estimate · ' + (tax.isManitoba ? 'Federal + Manitoba' : (tax.federalOnly ? 'Federal only' : 'Federal + ' + esc(tax.provinceName || ""))) + '</p>' +
+        (tax.federalOnly ? '<p class="notice" id="federalOnlyNotice">Provincial tax not yet included for ' + esc(tax.provinceName || "this province") + '; federal estimate shown.</p>' : '') +
         '<div class="tax-hero ' + heroClass + '">' +
           '<div class="tax-label">' + esc(heroLabel) + '</div>' +
           '<div class="amount" id="taxRefundAmount">' + esc(heroAmount) + '</div>' +

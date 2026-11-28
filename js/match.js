@@ -424,6 +424,58 @@ BF.estimateProgram = function (program, profile) {
     return varies({ note: "Amounts are set by your First Nation or designated education organization, so no dollar estimate is shown. Contact that organization to apply." });
   }
 
+  if (id === "home-buyers-amount") {
+    if (p.housing !== "own") return skip("Listed if you own your principal residence and bought a qualifying home in 2025 as a first-time buyer, or for a person eligible for the Disability Tax Credit.");
+    return varies({ note: "You may claim up to $10,000 on line 31270 for a qualifying 2025 home purchase if you are a first-time buyer, or if the home is for a person eligible for the Disability Tax Credit. This is a non-refundable credit, so no cash amount is added to your total." });
+  }
+
+  if (id === "mhrtc") {
+    if (p.housing !== "own") return skip("This credit is for a qualifying renovation to a home you own.");
+    return varies({ note: "If you completed a qualifying renovation to create a self-contained secondary unit for a senior or an adult eligible for the Disability Tax Credit, you can claim 14.5% of up to $50,000 of eligible expenses (maximum $7,250) on line 45355. A dollar amount is shown only if you have qualifying expenses." });
+  }
+
+  if (id === "canada-caregiver-amount") {
+    var infirmChild = (p.children || []).some(function (c) { return c && c.hasDtc; });
+    if (!infirmChild && !BF.hasDtcSelf(p) && !BF.seekingDtc(p)) return skip("Listed if you support a spouse, partner, or dependant with a physical or mental impairment.");
+    return varies({ note: "The Canada caregiver amount is a non-refundable credit. The official amount depends on who you support and their net income, so no dollar estimate is shown. See lines 30425, 30450, and 30500." });
+  }
+
+  if (id === "student-loan-interest") {
+    if (!p.student) return skip("Listed if you are a student and may have paid interest on a qualifying student loan.");
+    return varies({ note: "You can claim interest paid in 2025 on a qualifying Canada Student Loan or provincial student loan on line 31900. This is a non-refundable credit, so no cash amount is added to your total." });
+  }
+
+  if (id === "cpp-disability") {
+    if (age >= 65) return skip("CPP disability benefits end at age 65, when they convert to a CPP retirement pension.");
+    if (p.province === "QC") return skip("Quebec residents apply for the Quebec Pension Plan disability benefit, not the federal CPP disability benefit.");
+    if (p.disability !== "has-dtc" && p.disability !== "yes-no-dtc") return skip("Listed if you have a severe and prolonged disability and have made enough CPP contributions.");
+    return varies({ note: "Official 2025 maximum monthly amounts rose from $1,673.24 in January to $1,685.61 in December. Your payment depends on your CPP contributions, so no personal dollar estimate is shown. Apply through Service Canada." });
+  }
+
+  if (id === "ei-regular") {
+    var workEntered = p.workingIncome !== "" && p.workingIncome != null && isFinite(Number(p.workingIncome));
+    if (p.working || !workEntered || Number(p.workingIncome) > 0) return skip("Employment Insurance regular benefits are listed when you are not working and you entered $0 working income.");
+    if (age < 15 || age >= 71) return skip("Listed when you may be in the usual working-age range and are not currently working.");
+    return varies({ note: "If you lost your job through no fault of your own and have enough insurable hours, apply through Service Canada. The weekly amount depends on your insurable earnings, so no dollar estimate is shown." });
+  }
+
+  if (id === "northern-residents") {
+    if (["YT", "NT", "NU"].indexOf(p.province) < 0) return skip("Listed automatically for residents of Yukon, the Northwest Territories, or Nunavut. Some prescribed northern or intermediate zones in the provinces also qualify — use Form T2222 if that applies.");
+    return varies({ note: "If you lived in a prescribed zone for at least six consecutive months, complete Form T2222 and claim the deduction on line 25500. The residency and travel amounts depend on your zone and trips, so no dollar estimate is shown." });
+  }
+
+  if (id === "home-accessibility") {
+    if (p.housing !== "own") return skip("This credit is for eligible renovations to a qualifying home.");
+    if (age < 65 && !BF.hasDtcSelf(p) && !BF.seekingDtc(p) && !(p.children || []).some(function (c) { return c && c.hasDtc; })) return skip("A qualifying person must be 65 or older or eligible for the Disability Tax Credit.");
+    return varies({ note: "Eligible renovation expenses that improve accessibility may qualify for the home accessibility tax credit on line 31285. Official limits are on the CRA page, so no dollar estimate is invented here." });
+  }
+
+  if (id === "fhsa-account") {
+    if (p.housing === "own") return skip("An FHSA is generally for qualifying first-time home buyers.");
+    if (age < 18 || age > 71) return skip("You generally must be a resident of Canada and at least 18 to open an FHSA.");
+    return varies({ note: "The official 2025 FHSA annual contribution limit is $8,000, with a $40,000 lifetime limit. Contributions may be deductible on line 20805. This is not a government cash payment, so it is not added to your total." });
+  }
+
   return skip("No matching rule is defined for this program.");
 };
 

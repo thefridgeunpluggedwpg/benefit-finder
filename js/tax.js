@@ -336,7 +336,8 @@
       mbCredits = r2(mbCreditBase * 0.108);
       manitobaTax = Math.max(0, r2(mbGross.tax - mbCredits));
     } else {
-      assumptions.push("Provincial income tax is calculated for Manitoba only in this build. Federal tax and refundable credits are still estimated.");
+      var provName = (root.BF.provinceName && root.BF.provinceName(province)) || province;
+      assumptions.push("Provincial tax not yet included for " + provName + "; federal estimate shown.");
     }
 
     // Write-off credits (tuition, medical, donations, volunteer firefighter, MB items)
@@ -497,7 +498,10 @@
         other: r2(extraDeductions - toolsDed - lmd - fhsa)
       },
       fedDivCredit: r2(fedDivCredit || 0),
-      mbDivCredit: r2(mbDivCredit || 0)
+      mbDivCredit: r2(mbDivCredit || 0),
+      federalOnly: !isMb,
+      provincialIncluded: isMb,
+      provinceName: (root.BF.provinceName && root.BF.provinceName(province)) || province
     };
   };
 
@@ -670,6 +674,9 @@
     }
     if (!hasRoom) {
       notes.push("No RRSP room was entered, so this list uses the 2025 RRSP dollar limit of $32,490 as a cap. Your personal room is on your CRA Notice of Assessment and may be higher because unused room carries forward.");
+    }
+    if (!isMb) {
+      notes.push("Savings rates shown are federal. Provincial tax savings for " + ((root.BF.provinceName && root.BF.provinceName(p.province)) || p.province || "your province") + " would be extra.");
     }
     notes.push("Contributions in the first 60 days of 2026 count for the 2025 tax year.");
     notes.push("Unused RRSP room carries forward.");

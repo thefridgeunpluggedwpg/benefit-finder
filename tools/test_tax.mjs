@@ -7,6 +7,7 @@ ctx.window = ctx;
 ctx.globalThis = ctx;
 vm.createContext(ctx);
 vm.runInContext(fs.readFileSync(new URL("../js/config.js", import.meta.url), "utf8"), ctx);
+vm.runInContext(fs.readFileSync(new URL("../js/programs.js", import.meta.url), "utf8"), ctx);
 vm.runInContext(fs.readFileSync(new URL("../js/match.js", import.meta.url), "utf8"), ctx);
 vm.runInContext(fs.readFileSync(new URL("../js/tax.js", import.meta.url), "utf8"), ctx);
 
@@ -331,5 +332,70 @@ test("21. Entered RRSP room does not change the existing tax refund estimate", (
   assert.equal(withRoom.rrspDeduction, 3000);
 });
 
+test("22. BC employee gets a full federal estimate labelled federal-only, with no Manitoba tax", () => {
+  const res = BF.estimateTaxRefund({
+    province: "BC", age: 35, marital: "single",
+    householdIncome: 70000, working: true, workingIncome: 70000,
+    housing: "own", children: [], taxWithheld: 15000
+  });
+  assert.equal(res.federalOnly, true);
+  assert.equal(res.provincialIncluded, false);
+  assert.equal(res.manitobaTax, 0);
+  assert.equal(res.isManitoba, false);
+  assert.ok(res.federalTax > 0);
+  assert.ok(res.assumptions.some((a) => a.includes("Provincial tax not yet included for British Columbia") && a.includes("federal estimate shown")));
+});
+
+test("23. MB estimate is still federal plus Manitoba, not federal-only", () => {
+  const res = BF.estimateTaxRefund({
+    province: "MB", age: 35, marital: "single",
+    householdIncome: 70000, working: true, workingIncome: 70000,
+    housing: "own", children: [], taxWithheld: 15000
+  });
+  assert.equal(res.federalOnly, false);
+  assert.equal(res.provincialIncluded, true);
+  assert.ok(res.manitobaTax > 0);
+});
+
+test("24. BC RRSP helper uses federal brackets and notes that provincial savings would be extra", () => {
+  const h = BF.rrspHelper({
+    province: "BC", age: 35, marital: "single",
+    householdIncome: 70000, working: true, workingIncome: 70000,
+    housing: "own", children: [], rrspRoom: 10000
+  });
+  assert.equal(h.taxableIncomeAtZero, 69335);
+  assert.equal(h.sweetSpot, 11960);
+  assert.equal(h.sweetSpotThreshold, 57375);
+  assert.equal(h.isManitoba, false);
+  const full = h.steps.find((s) => s.contribution === 10000);
+  assert.equal(full.extraRefund, 2050);
+  assert.equal(full.marginalRatePercent, 20.5);
+  assert.ok(h.notes.some((n) => n.includes("federal") && n.includes("Provincial tax savings") && n.includes("would be extra")));
+});
+
+test("25. Federal programs surface in BC; Manitoba programs do not", () => {
+  const ids = BF.matchAll({
+    province: "BC", age: 32, marital: "single",
+    householdIncome: 28000, working: true, workingIncome: 28000,
+    housing: "rent", children: [], gender: "prefer-not"
+  }).filter((m) => m.estimate.match).map((m) => m.program.id);
+  assert.ok(ids.includes("cgeb"));
+  assert.ok(ids.includes("cwb"));
+  assert.ok(ids.includes("cdcp"));
+  assert.ok(ids.includes("fhsa-account"));
+  assert.ok(!ids.includes("ratc"));
+  assert.ok(!ids.includes("hatc"));
+  assert.ok(!ids.includes("rent-assist"));
+  assert.ok(!ids.includes("manitoba-child-benefit"));
+  const own = BF.matchAll({
+    province: "BC", age: 40, marital: "single",
+    householdIncome: 50000, working: true, workingIncome: 50000,
+    housing: "own", children: [], disability: "none"
+  }).filter((m) => m.estimate.match).map((m) => m.program.id);
+  assert.ok(own.includes("home-buyers-amount"));
+  assert.ok(own.includes("mhrtc"));
+});
+
 console.log(`\n${passed} passed, 0 failed, ${passed} total`);
+
 

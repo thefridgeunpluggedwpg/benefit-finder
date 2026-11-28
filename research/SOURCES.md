@@ -89,3 +89,17 @@ Amounts and rules in Benefit Finder come from these pages. If a figure could not
 ## RRSP contribution timing (added 27 November 2026)
 
 - RRSP contributions, including that amounts paid in the first 60 days of the following year can be deducted for the prior tax year, and unused room carries forward: https://www.canada.ca/en/revenue-agency/services/tax/individuals/topics/rrsps-related-plans/contributing-a-rrsp-prpp.html
+
+
+## Additional 2025 federal credits and benefits (added 27 November 2026)
+
+- Home buyers' amount (line 31270, up to $10,000): https://www.canada.ca/en/revenue-agency/services/tax/individuals/topics/about-your-tax-return/tax-return/completing-a-tax-return/deductions-credits-expenses/line-31270-home-buyers-amount.html
+- Multigenerational home renovation tax credit (line 45355, 14.5% of up to $50,000, maximum $7,250): https://www.canada.ca/en/revenue-agency/services/tax/individuals/topics/about-your-tax-return/tax-return/completing-a-tax-return/deductions-credits-expenses/line-45355-mhrtc.html
+- Canada caregiver amount (lines 30425, 30450, 30500): https://www.canada.ca/en/revenue-agency/services/tax/individuals/topics/about-your-tax-return/tax-return/completing-a-tax-return/deductions-credits-expenses/line-30425-30450-30500-canada-caregiver-amount.html
+- Interest paid on student loans (line 31900): https://www.canada.ca/en/revenue-agency/services/tax/individuals/topics/about-your-tax-return/tax-return/completing-a-tax-return/deductions-credits-expenses/line-31900-interest-paid-on-your-student-loans.html
+- Home accessibility tax credit (line 31285): https://www.canada.ca/en/revenue-agency/services/tax/individuals/topics/about-your-tax-return/tax-return/completing-a-tax-return/deductions-credits-expenses/line-31285-home-accessibility-expenses.html
+- Northern residents deductions (line 25500, Form T2222): https://www.canada.ca/en/revenue-agency/services/tax/individuals/topics/about-your-tax-return/tax-return/completing-a-tax-return/deductions-credits-expenses/line-25500-northern-residents-deductions.html
+- First Home Savings Account: https://www.canada.ca/en/revenue-agency/services/tax/individuals/topics/first-home-savings-account.html
+- CPP disability benefit: https://www.canada.ca/en/services/benefits/publicpensions/cpp/cpp-disability-benefit.html
+- EI regular benefits: https://www.canada.ca/en/services/benefits/ei/ei-regular-benefit.html
+- 2025 federal and provincial tax brackets: https://www.canada.ca/en/revenue-agency/services/tax/individuals/tax-rates-brackets/last-year.html
