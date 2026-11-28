@@ -29,6 +29,7 @@ BF.emptyProfile = function () {
     writeoffAmounts: {},
     taxWithheld: "",
     rrspDeduction: "",
+    rrspRoom: "",
     spouseIncome: "",
     children: [],
     housing: "rent",

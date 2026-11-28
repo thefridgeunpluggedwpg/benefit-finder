@@ -251,4 +251,85 @@ test("16. Other-than-eligible dividends use the 115% gross-up and 15.0198% / 0.7
   assert.equal(res.mbDivCredit, 90.1);
 });
 
+test("17. RRSP helper for $70k MB employee with $10k room: steps, 33.25% rate, sweet spot $11,960", () => {
+  const h = BF.rrspHelper({
+    province: "MB", age: 35, marital: "single",
+    householdIncome: 70000, working: true, workingIncome: 70000,
+    housing: "own", children: [], rrspRoom: 10000
+  });
+  assert.equal(h.taxableIncomeAtZero, 69335);
+  assert.equal(h.sweetSpot, 11960);
+  assert.equal(h.sweetSpotThreshold, 57375);
+  assert.equal(h.sweetSpotWithinCap, false);
+  assert.equal(h.rateBeforePercent, 33.25);
+  assert.equal(h.rateAfterPercent, 27.25);
+  assert.equal(h.steps.map((s) => s.contribution).join(","), "0,1000,2500,5000,10000");
+  const byC = Object.fromEntries(h.steps.map((s) => [s.contribution, s]));
+  assert.equal(byC[0].extraRefund, 0);
+  assert.equal(byC[1000].extraRefund, 332.5);
+  assert.equal(byC[1000].marginalRatePercent, 33.25);
+  assert.equal(byC[2500].extraRefund, 831.25);
+  assert.equal(byC[5000].extraRefund, 1662.5);
+  assert.equal(byC[10000].extraRefund, 3325);
+  assert.equal(byC[10000].marginalRatePercent, 33.25);
+  assert.equal(byC[10000].isRoom, true);
+  assert.ok(h.notes.some((n) => n.includes("$11,960") && n.includes("$57,375") && n.includes("not enough")));
+  assert.ok(h.notes.some((n) => n.includes("first 60 days of 2026")));
+  assert.ok(h.notes.some((n) => n.includes("carries forward")));
+  assert.ok(h.notes.some((n) => n.includes("deduct the amount later")));
+  assert.ok(h.notes.some((n) => n.includes("FHSA") && n.includes("TFSA") && n.includes("not personal advice")));
+});
+
+test("18. RRSP helper adds the sweet-spot row when it fits in room, and the rate drops after it", () => {
+  const h = BF.rrspHelper({
+    province: "MB", age: 35, marital: "single",
+    householdIncome: 70000, working: true, workingIncome: 70000,
+    housing: "own", children: [], rrspRoom: 20000
+  });
+  assert.equal(h.sweetSpotWithinCap, true);
+  const sweet = h.steps.find((s) => s.isSweetSpot);
+  assert.ok(sweet);
+  assert.equal(sweet.contribution, 11960);
+  assert.equal(sweet.extraRefund, 3976.7);
+  assert.equal(sweet.marginalRatePercent, 33.25);
+  const after = h.steps.find((s) => s.contribution === 20000);
+  assert.equal(after.marginalRatePercent, 27.25);
+  assert.equal(after.extraRefund, 6167.6);
+});
+
+test("19. RRSP helper caps suggested amounts at entered room", () => {
+  const h = BF.rrspHelper({
+    province: "MB", age: 35, marital: "single",
+    householdIncome: 70000, working: true, workingIncome: 70000,
+    housing: "own", children: [], rrspRoom: 2500
+  });
+  assert.equal(h.steps.map((s) => s.contribution).join(","), "0,1000,2500");
+  assert.equal(h.cap, 2500);
+});
+
+test("20. RRSP helper notes when tax is already $0 / income is below the basic personal amount", () => {
+  const h = BF.rrspHelper({
+    province: "MB", age: 30, marital: "single",
+    householdIncome: 15000, working: true, workingIncome: 15000,
+    housing: "own", children: [], rrspRoom: 5000
+  });
+  assert.equal(h.alreadyBelowBpa, true);
+  assert.equal(h.taxAlreadyZero, true);
+  assert.equal(h.steps.find((s) => s.contribution === 5000).extraRefund, 0);
+  assert.ok(h.notes.some((n) => n.includes("basic personal amount")));
+});
+
+test("21. Entered RRSP room does not change the existing tax refund estimate", () => {
+  const profile = {
+    province: "MB", age: 35, marital: "single",
+    householdIncome: 70000, working: true, workingIncome: 70000,
+    housing: "own", children: [], rrspDeduction: 3000, taxWithheld: 10500
+  };
+  const without = BF.estimateTaxRefund(profile);
+  const withRoom = BF.estimateTaxRefund(Object.assign({}, profile, { rrspRoom: 10000 }));
+  assert.equal(withRoom.amountAbs, without.amountAbs);
+  assert.equal(withRoom.rrspDeduction, 3000);
+});
+
 console.log(`\n${passed} passed, 0 failed, ${passed} total`);
+

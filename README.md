@@ -4,7 +4,7 @@ A prototype web app for a Manitoba financial-planner client. It helps one person
 
 **Live (when published):** https://thefridgeunpluggedwpg.github.io/benefit-finder/
 
-Version **1.3.0**. The product name lives in one place: `js/config.js` (`BF.APP_NAME`).
+Version **1.4.0**. The product name lives in one place: `js/config.js` (`BF.APP_NAME`).
 
 This is a **prototype — demo build**. The badge is visible in the app. It does **not** submit applications to the CRA, Service Canada, or the Government of Manitoba. There is no public API that would let an app do that on someone’s behalf.
 
@@ -14,7 +14,7 @@ This is a **prototype — demo build**. The badge is visible in the app. It does
 2. A government ID upload during post-close onboarding (after a lead is closed or a packet is approved or signed). Images stay on the device (IndexedDB). They are never transmitted by this build.
 3. Matching against a catalog of real programs, using official rules and amounts gathered from canada.ca and gov.mb.ca on 21 November 2026. See `research/SOURCES.md`.
 4. After matching, a one-screen checklist asks “Do you already receive [program]?” for every match. Yes hides it from the results and the dollar total, and keeps it in a collapsed Already receiving list so it can be undone. Answers are saved on the device.
-5. An upfront approximate total, broken down by program, labelled with the official benefit year. If an amount cannot be verified, the row says **amount varies** and is left out of the total. Loans are labelled as loans and are also left out of the total. Results also include a 2025 tax refund estimate and a profession-tailored checklist of possible write-offs (with optional amounts that update the estimate). The federal digital news subscription credit is omitted because it ended after 2024.
+5. An upfront approximate total, broken down by program, labelled with the official benefit year. If an amount cannot be verified, the row says **amount varies** and is left out of the total. Loans are labelled as loans and are also left out of the total. Results also include a 2025 tax refund estimate and a profession-tailored checklist of possible write-offs (with optional amounts that update the estimate), and an RRSP helper that compares contribution amounts against your room. The federal digital news subscription credit is omitted because it ended after 2024.
 6. The user reviews and approves selected programs. Approval only creates a packet on the device: a prefilled summary, the official program link, and a document checklist.
 7. Tax-related programs (claimed on a tax return or through the CRA — for example CCB, the Groceries and Essentials Benefit, CWB, the DTC, and Manitoba tax credits) go to an **accountant queue**. Other programs are marked **submit directly**.
 8. A progress tracker. Status moves **Submitted → In review → Approved** (or **Denied**), with dates. The owner advances status by hand.

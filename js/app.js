@@ -405,13 +405,17 @@
         '</label>' +
       '</div>' +
       incomeDetailsFields() +
+      '<label class="field"><span>Tax already deducted on T4s (Box 22, optional)</span>' +
+        '<input type="number" name="taxWithheld" min="0" step="1" inputmode="decimal" value="' + esc(val("taxWithheld")) + '">' +
+        '<span class="hint">Used to estimate your 2025 tax refund or balance owing.</span>' +
+      '</label>' +
       '<div class="grid-2">' +
-        '<label class="field"><span>Tax already deducted on T4s (Box 22, optional)</span>' +
-          '<input type="number" name="taxWithheld" min="0" step="1" inputmode="decimal" value="' + esc(val("taxWithheld")) + '">' +
-          '<span class="hint">Used to estimate your 2025 tax refund or balance owing.</span>' +
-        '</label>' +
         '<label class="field"><span>2025 RRSP contributions deducted (optional)</span>' +
           '<input type="number" name="rrspDeduction" min="0" step="1" inputmode="decimal" value="' + esc(val("rrspDeduction")) + '">' +
+        '</label>' +
+        '<label class="field"><span>RRSP contribution room (optional)</span>' +
+          '<input type="number" name="rrspRoom" min="0" step="1" inputmode="decimal" value="' + esc(val("rrspRoom")) + '">' +
+          '<span class="hint">From your CRA Notice of Assessment. The RRSP helper caps amounts at this room.</span>' +
         '</label>' +
       '</div>' +
       '<label class="field"><span>Spouse or partner’s 2025 net income (optional)</span>' +
@@ -697,7 +701,47 @@
     );
   }
 
+  function renderRrspHelperSection() {
+    if (typeof BF.rrspHelper !== "function") return "";
+    var helper = BF.rrspHelper(state.profile, { alreadyReceiving: state.alreadyReceiving || {} });
+    var steps = (helper.steps || []).map(function (step) {
+      var tags = "";
+      if (step.isSweetSpot) tags += '<span class="tag">Sweet spot</span>';
+      if (step.isRoom) tags += '<span class="tag">Full room</span>';
+      if (step.isEntered) tags += '<span class="tag">You entered</span>';
+      var position = step.netBalance >= 0
+        ? "Estimated refund: " + fmtMoneyCents(step.amountAbs)
+        : "Estimated balance owing: " + fmtMoneyCents(step.amountAbs);
+      var extra;
+      if (step.contribution === 0) extra = "This is the comparison point with no RRSP deduction.";
+      else if (step.extraRefund >= 0) extra = "Extra vs $0: " + fmtMoneyCents(step.extraRefund) + " more back";
+      else extra = "Extra vs $0: " + fmtMoneyCents(Math.abs(step.extraRefund)) + " less back";
+      var rate = step.contribution === 0 ? "" : '<p class="fine">Savings on the extra dollars: ' + esc(String(step.marginalRatePercent)) + '%</p>';
+      return '<article class="rrsp-step' + (step.isSweetSpot ? " rrsp-step-sweet" : "") + '" data-rrsp-contrib="' + esc(String(step.contribution)) + '">' +
+        '<div class="name">' + esc(fmtMoneyCents(step.contribution)) + ' contribution' + (tags ? " " + tags : "") + '</div>' +
+        '<p class="fine">' + esc(position) + '</p>' +
+        '<p class="fine">' + esc(extra) + '</p>' +
+        rate +
+      '</article>';
+    }).join("");
+    var notes = (helper.notes || []).map(function (n) {
+      return '<p class="fine">' + esc(n) + '</p>';
+    }).join("");
+    var capLine = helper.hasRoom
+      ? "Amounts are capped at the RRSP room you entered from your Notice of Assessment (" + fmtMoneyCents(helper.room) + ")."
+      : "No room was entered, so amounts are capped at the 2025 RRSP dollar limit (" + fmtMoneyCents(helper.cap) + ").";
+    return (
+      '<section class="panel" id="rrspHelperPanel">' +
+        '<h2>RRSP helper</h2>' +
+        '<p class="fine">Using the same 2025 tax estimate as above, here is how different RRSP amounts change your refund or balance owing. ' + esc(capLine) + ' This is an estimate, not tax advice — see the disclaimer above.</p>' +
+        steps +
+        '<div id="rrspHelperNotes">' + notes + '</div>' +
+      '</section>'
+    );
+  }
+
   function renderTaxSection() {
+
 
     if (typeof BF.estimateTaxRefund !== "function") return "";
     var tax = BF.estimateTaxRefund(state.profile, { alreadyReceiving: state.alreadyReceiving || {} });
@@ -824,6 +868,7 @@
     }
     return (
       renderTaxSection() +
+      renderRrspHelperSection() +
       renderWriteoffsSection() +
       '<section class="panel" id="resultsPanel">' +
         '<p class="fine">Prototype — demo build. Estimates are approximate.</p>' +

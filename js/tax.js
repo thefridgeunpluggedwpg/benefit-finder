@@ -500,4 +500,201 @@
       mbDivCredit: r2(mbDivCredit || 0)
     };
   };
+
+  /* Combined federal + Manitoba taxable-income thresholds where the
+     combined marginal rate changes (union of 2025 federal and MB brackets). */
+  var COMBINED_THRESHOLDS_MB_2025 = [47000, 57375, 100000, 114750, 177882, 253414];
+  var FED_THRESHOLDS_2025 = [57375, 114750, 177882, 253414];
+  var RRSP_DOLLAR_LIMIT_2025 = 32490;
+  var SUGGESTED_RRSP_STEPS = [0, 1000, 2500, 5000, 10000];
+
+  root.BF.RRSP_DOLLAR_LIMIT_2025 = RRSP_DOLLAR_LIMIT_2025;
+  root.BF.combinedBracketThresholds = function (province) {
+    return (province === "MB" ? COMBINED_THRESHOLDS_MB_2025 : FED_THRESHOLDS_2025).slice();
+  };
+
+  function cloneProfileForRrsp(profile, amount) {
+    var q = {};
+    Object.keys(profile || {}).forEach(function (k) { q[k] = profile[k]; });
+    q.rrspDeduction = amount;
+    if (profile && profile.writeoffAmounts && typeof profile.writeoffAmounts === "object") {
+      var wo = {};
+      Object.keys(profile.writeoffAmounts).forEach(function (k) {
+        if (k !== "rrspDeduction" && k !== "rrsp") wo[k] = profile.writeoffAmounts[k];
+      });
+      q.writeoffAmounts = wo;
+    }
+    return q;
+  }
+
+  function combinedMarginalPercent(taxable, isMb) {
+    var fed = calcProgressive(taxable, FED_BRACKETS_2025).marginalRate;
+    var mb = isMb ? calcProgressive(taxable, MB_BRACKETS_2025).marginalRate : 0;
+    return r2((fed + mb) * 100);
+  }
+
+  function nextLowerThreshold(taxable, thresholds) {
+    var found = null;
+    for (var i = 0; i < thresholds.length; i++) {
+      if (thresholds[i] < taxable - 0.005) found = thresholds[i];
+    }
+    return found;
+  }
+
+  root.BF.rrspHelper = function (profile, opts) {
+    opts = opts || {};
+    var p = profile || {};
+    var already = opts.alreadyReceiving || {};
+    var isMb = (p.province || "MB") === "MB";
+    var hasRoom = hasVal(p.rrspRoom);
+    var room = hasRoom ? Math.max(0, Number(p.rrspRoom) || 0) : null;
+    var cap = hasRoom ? room : RRSP_DOLLAR_LIMIT_2025;
+    if (cap < 0) cap = 0;
+
+    var amounts = [];
+    SUGGESTED_RRSP_STEPS.forEach(function (a) {
+      if (a <= cap + 0.005) amounts.push(a);
+    });
+    if (cap > 0 && amounts.indexOf(cap) < 0) {
+      var alreadyIn = amounts.some(function (a) { return Math.abs(a - cap) < 0.005; });
+      if (!alreadyIn) amounts.push(cap);
+    }
+    var entered = hasVal(p.rrspDeduction) ? num(p.rrspDeduction) : 0;
+    if (entered > 0 && entered <= cap + 0.005) {
+      var hasEntered = amounts.some(function (a) { return Math.abs(a - entered) < 0.005; });
+      if (!hasEntered) amounts.push(entered);
+    }
+    amounts.sort(function (a, b) { return a - b; });
+
+    function estimateAt(amount) {
+      return root.BF.estimateTaxRefund(cloneProfileForRrsp(p, amount), { alreadyReceiving: already });
+    }
+
+    var zero = estimateAt(0);
+    var thresholds = root.BF.combinedBracketThresholds(p.province || "MB");
+    var targetThreshold = nextLowerThreshold(zero.taxableIncome, thresholds);
+    var sweetSpot = targetThreshold != null ? r2(Math.max(0, zero.taxableIncome - targetThreshold)) : null;
+    if (sweetSpot != null && sweetSpot <= cap + 0.005 && sweetSpot > 0) {
+      var hasSweet = amounts.some(function (a) { return Math.abs(a - sweetSpot) < 0.005; });
+      if (!hasSweet) {
+        amounts.push(sweetSpot);
+        amounts.sort(function (a, b) { return a - b; });
+      }
+    }
+
+    var steps = amounts.map(function (contrib, i) {
+      var res = estimateAt(contrib);
+      var prevAmount = i === 0 ? contrib : amounts[i - 1];
+      var prevRes = i === 0 ? res : estimateAt(prevAmount);
+      var deltaContrib = r2(contrib - prevAmount);
+      var extraVsZero = r2(res.netBalance - zero.netBalance);
+      var extraVsPrev = r2(res.netBalance - prevRes.netBalance);
+      var marginal = deltaContrib > 0 ? r2((extraVsPrev / deltaContrib) * 100) : 0;
+      return {
+        contribution: contrib,
+        taxableIncome: res.taxableIncome,
+        totalTaxPayable: res.totalTaxPayable,
+        totalRefundableCredits: res.totalRefundableCredits,
+        netBalance: res.netBalance,
+        status: res.status,
+        amountAbs: res.amountAbs,
+        hasTaxWithheld: res.hasTaxWithheld,
+        extraRefund: extraVsZero,
+        extraVsPrevious: extraVsPrev,
+        marginalRatePercent: marginal,
+        isEntered: entered > 0 && Math.abs(contrib - entered) < 0.005,
+        isRoom: hasRoom && Math.abs(contrib - room) < 0.005,
+        isSweetSpot: sweetSpot != null && contrib > 0 && Math.abs(contrib - sweetSpot) < 0.005
+      };
+    });
+
+    var fedBpa = 16129;
+    var alreadyBelowBpa = zero.taxableIncome <= fedBpa;
+    var taxAlreadyZero = zero.totalTaxPayable <= 0;
+    var last = steps[steps.length - 1] || steps[0];
+    var taxZeroWithinCap = taxAlreadyZero ? 0 : (last && last.totalTaxPayable <= 0 ? true : (estimateAt(cap).totalTaxPayable <= 0));
+    var taxZeroAt = null;
+    if (taxAlreadyZero) taxZeroAt = 0;
+    else if (estimateAt(cap).totalTaxPayable <= 0) {
+      var lo = 0;
+      var hi = cap;
+      for (var n = 0; n < 40; n++) {
+        var mid = r2((lo + hi) / 2);
+        if (estimateAt(mid).totalTaxPayable <= 0) hi = mid;
+        else lo = mid;
+      }
+      taxZeroAt = r2(hi);
+    }
+
+    var refundableAtZero = zero.totalRefundableCredits;
+    var refundableAtCap = estimateAt(cap).totalRefundableCredits;
+    var refundableRiseStops = false;
+    var i;
+    for (i = 1; i < steps.length; i++) {
+      if (steps[i - 1].totalRefundableCredits > refundableAtZero + 0.005 &&
+          Math.abs(steps[i].totalRefundableCredits - steps[i - 1].totalRefundableCredits) < 0.005) {
+        refundableRiseStops = true;
+      }
+    }
+
+    function cadLabel(n) {
+      var v = r2(n);
+      var neg = v < 0;
+      var abs = Math.abs(v);
+      var parts = abs.toFixed(2).split(".");
+      var whole = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+      var s = "$" + whole + (parts[1] === "00" ? "" : "." + parts[1]);
+      return (neg ? "−" : "") + s;
+    }
+
+    var rateNow = combinedMarginalPercent(Math.max(0, zero.taxableIncome), isMb);
+    var rateAfter = targetThreshold != null ? combinedMarginalPercent(targetThreshold, isMb) : rateNow;
+
+    var notes = [];
+    if (alreadyBelowBpa || taxAlreadyZero) {
+      notes.push("Your taxable income is already at or below the basic personal amount, or your estimated tax is already $0, so more RRSP generally will not reduce 2025 tax.");
+    } else if (targetThreshold == null) {
+      notes.push("You are already in the lowest combined federal" + (isMb ? " and Manitoba" : "") + " tax bracket, so there is no lower bracket to drop into. Each extra dollar still saves tax at about " + String(rateNow) + "% until tax reaches $0.");
+    } else if (sweetSpot > cap) {
+      notes.push("About " + cadLabel(sweetSpot) + " would bring taxable income down to " + cadLabel(targetThreshold) + ", where the combined rate drops from " + String(rateNow) + "% to " + String(rateAfter) + "%. " + (hasRoom ? "The room you entered is not enough to get there, so each dollar in this list saves at about the same rate." : "That target is above the amounts shown."));
+    } else if (sweetSpot > 0) {
+      notes.push("The sweet spot is about " + cadLabel(sweetSpot) + ": that is the amount that brings taxable income down to the next lower combined bracket of " + cadLabel(targetThreshold) + ". Beyond that, each extra dollar saves less (the combined rate drops from " + String(rateNow) + "% to " + String(rateAfter) + "%).");
+    }
+    if (taxZeroAt != null && taxZeroAt > 0 && !taxAlreadyZero) {
+      notes.push("Around " + cadLabel(taxZeroAt) + " of RRSP, estimated 2025 tax reaches $0. Contributions above that do not reduce this year's tax.");
+    }
+    if (refundableAtCap > refundableAtZero + 0.005) {
+      notes.push("A larger RRSP can also increase refundable benefits that phase out with income, such as the Canada Workers Benefit. That extra help stops once those benefits have reached their maximum.");
+    } else if (refundableRiseStops) {
+      notes.push("Refundable benefits stop increasing after a point in this list, so further contributions no longer help those credits.");
+    }
+    if (!hasRoom) {
+      notes.push("No RRSP room was entered, so this list uses the 2025 RRSP dollar limit of $32,490 as a cap. Your personal room is on your CRA Notice of Assessment and may be higher because unused room carries forward.");
+    }
+    notes.push("Contributions in the first 60 days of 2026 count for the 2025 tax year.");
+    notes.push("Unused RRSP room carries forward.");
+    notes.push("You can contribute now and deduct the amount later, in a higher-income year.");
+    notes.push("At lower income, an FHSA or a TFSA may leave you better off than an RRSP. This is general information, not personal advice.");
+
+    return {
+      taxYear: 2025,
+      hasRoom: hasRoom,
+      room: room,
+      cap: cap,
+      taxableIncomeAtZero: zero.taxableIncome,
+      totalTaxAtZero: zero.totalTaxPayable,
+      netBalanceAtZero: zero.netBalance,
+      sweetSpot: sweetSpot,
+      sweetSpotThreshold: targetThreshold,
+      sweetSpotWithinCap: sweetSpot != null && sweetSpot > 0 && sweetSpot <= cap + 0.005,
+      rateBeforePercent: rateNow,
+      rateAfterPercent: rateAfter,
+      alreadyBelowBpa: alreadyBelowBpa,
+      taxAlreadyZero: taxAlreadyZero,
+      taxZeroAt: taxZeroAt,
+      steps: steps,
+      notes: notes,
+      isManitoba: isMb
+    };
+  };
 })(typeof window !== "undefined" ? window : globalThis);

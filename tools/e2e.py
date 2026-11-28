@@ -1,4 +1,4 @@
-"""Benefit Finder v1.3.0 end-to-end tests (Playwright + local Chrome).
+"""Benefit Finder v1.4.0 end-to-end tests (Playwright + local Chrome).
 Serve the app on 127.0.0.1:8940 and run:
   /workspace/.venv-pw/bin/python tools/e2e.py
 Exit code 1 if any test fails.
@@ -74,7 +74,7 @@ def main():
         check("fees: 3% applies to non-DTC amounts only ($451.20)", abs(fees.get("percentFee") - 451.20) < 0.02 and abs(fees.get("baseFound") - 15040) < 0.01, fees)
         check("fees: DTC amount is excluded and $100 cap is recorded", fees.get("dtcCapCad") == 100 and fees.get("dtcFound") == 3480, fees)
         check("catalog has at least 20 official programs", page.evaluate("BF.PROGRAMS.length") >= 20, page.evaluate("BF.PROGRAMS.length"))
-        check("version is 1.3.0", page.evaluate("BF.VERSION") == "1.3.0", page.evaluate("BF.VERSION"))
+        check("version is 1.4.0", page.evaluate("BF.VERSION") == "1.4.0", page.evaluate("BF.VERSION"))
 
         WOMEN_IDS = ["wes-loan-fund", "wes-business-support", "mb-women-trades", "mb-gbv-supports"]
 
@@ -126,6 +126,7 @@ def main():
         page.fill('input[name="workingIncome"]', "28000")
         check("profession and work type fields are on the household step", page.locator('select[name="profession"]').count() == 1 and page.locator('select[name="workType"]').count() == 1)
         check("optional 2025 income details are present", page.locator("#incomeDetails").count() == 1 and page.locator('input[name="incomeEmployment"]').count() == 1 and page.locator('input[name="incomeCapitalGains"]').count() == 1)
+        check("RRSP room field is next to the RRSP deduction field", page.locator('input[name="rrspRoom"]').count() == 1 and page.locator('input[name="rrspDeduction"]').count() == 1)
         page.select_option('select[name="profession"]', "office")
         page.select_option('select[name="workType"]', "employee")
         page.select_option('select[name="housing"]', "rent")
@@ -475,6 +476,22 @@ def main():
         wo_c = page.inner_text("#writeoffsPanel")
         check("self-employed write-offs include T2125 expenses", "T2125" in wo_c or "Self-employment" in wo_c or "self-employed" in wo_c.lower(), wo_c[:400])
         check("self-employed write-offs omit trades tools", "Tradesperson" not in wo_c, wo_c[:400])
+
+        show_results_for({
+            "displayName": "RRSP Friend", "province": "MB", "age": 35, "marital": "single",
+            "householdIncome": 70000, "working": True, "workingIncome": 70000,
+            "housing": "own", "children": [], "rrspRoom": 10000
+        })
+        helper = page.inner_text("#rrspHelperPanel")
+        check("RRSP helper panel is on results", page.locator("#rrspHelperPanel").count() == 1 and "RRSP helper" in helper, helper[:200])
+        for label in ["$0.00 contribution", "$1,000.00 contribution", "$2,500.00 contribution", "$5,000.00 contribution", "$10,000.00 contribution"]:
+            check("RRSP helper includes " + label, label in helper, helper[:300])
+        check("RRSP helper shows $3,325 extra at full room and 33.25% rate", "3,325.00" in helper and "33.25%" in helper, helper)
+        check("RRSP helper names the $11,960 sweet spot above $10k room", "11,960" in helper and "57,375" in helper and "not enough" in helper.lower(), page.inner_text("#rrspHelperNotes"))
+        check("RRSP helper includes 60-day, carryforward, deduct later, and FHSA/TFSA notes", "first 60 days of 2026" in helper and "carries forward" in helper.lower() and "higher-income year" in helper and "FHSA" in helper and "TFSA" in helper, helper[-500:])
+        check("existing tax disclaimer remains on the page", "not tax advice" in page.inner_text("#taxDisclaimer").lower())
+        overflow = page.evaluate("() => document.documentElement.scrollWidth > window.innerWidth")
+        check("RRSP helper does not cause horizontal overflow at 390px", overflow is False, overflow)
 
         check("no page errors", not errs, errs)
 

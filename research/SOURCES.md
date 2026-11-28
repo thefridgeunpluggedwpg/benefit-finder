@@ -85,3 +85,7 @@ Amounts and rules in Benefit Finder come from these pages. If a figure could not
 - Digital news subscription tax credit: not valid for 2025 (ended after 2024) and is not listed in the app
 - Manitoba fitness amount, Primary Caregiver Tax Credit ($1,400), labour-sponsored funds credit (15% to $1,800): https://www.gov.mb.ca/finance/personal/pcredits.html and https://www.gov.mb.ca/finance/tao/caregiver.html
 - Self-employed business expenses (Form T2125): https://www.canada.ca/en/revenue-agency/services/forms-publications/publications/t4002/t4002-2.html
+
+## RRSP contribution timing (added 27 November 2026)
+
+- RRSP contributions, including that amounts paid in the first 60 days of the following year can be deducted for the prior tax year, and unused room carries forward: https://www.canada.ca/en/revenue-agency/services/tax/individuals/topics/rrsps-related-plans/contributing-a-rrsp-prpp.html

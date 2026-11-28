@@ -609,3 +609,21 @@ fieldset.field legend {
 #writeoffsPanel h2 {
   margin-top: 0;
 }
+
+#rrspHelperPanel h2 { margin-top: 0; }
+#rrspHelperPanel .rrsp-step {
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  padding: 0.75rem 0.8rem 0.35rem;
+  margin: 0 0 0.65rem;
+  background: #fff;
+}
+#rrspHelperPanel .rrsp-step .name {
+  font-weight: 700;
+  margin: 0 0 0.2rem;
+}
+#rrspHelperPanel .rrsp-step-sweet {
+  border-color: var(--spruce-deep, #163142);
+  background: #f4f7f5;
+}
+#rrspHelperNotes { margin-top: 0.35rem; }
